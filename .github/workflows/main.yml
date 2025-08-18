@@ -14,8 +14,18 @@ jobs:
         with:
           channel: stable
 
-      - name: Create Flutter project
+      - name: Create Flutter project scaffold
         run: flutter create mobile
+
+      - name: Copy our Flutter code into project
+        run: |
+          rm -rf mobile/lib
+          mkdir -p mobile/lib
+          cp -R app_lib/. mobile/lib/
+
+      - name: Add dependencies
+        working-directory: mobile
+        run: flutter pub add http
 
       - name: Build APK (release)
         working-directory: mobile
