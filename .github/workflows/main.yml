@@ -6,22 +6,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          channel: stable   # stable channel là đủ
 
       - name: Create Flutter project scaffold
         run: flutter create mobile
 
-      - name: Copy our Flutter code into project
+      # Nếu repo có app_lib thì copy vào mobile/lib; nếu không có, vẫn build app Flutter mặc định
+      - name: Copy our Flutter code into project (if exists)
         run: |
-          rm -rf mobile/lib
-          mkdir -p mobile/lib
-          cp -R app_lib/. mobile/lib/
+          if [ -d app_lib ]; then
+            rm -rf mobile/lib
+            mkdir -p mobile/lib
+            cp -R app_lib/. mobile/lib/
+          fi
 
       - name: Add dependencies
         working-directory: mobile
