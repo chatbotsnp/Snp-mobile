@@ -1,0 +1,43 @@
+name: Build Android APK (SNP Chatbot)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create Flutter project scaffold
+        run: flutter create mobile
+
+      - name: Copy our Flutter code into project
+        run: |
+          rm -rf mobile/lib
+          mkdir -p mobile/lib
+          cp -R app_lib/. mobile/lib/
+
+      - name: Add dependencies
+        working-directory: mobile
+        run: |
+          flutter pub add http
+
+      - name: Build APK (release)
+        working-directory: mobile
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SNP-Chatbot-APK
+          path: mobile/build/app/outputs/flutter-apk/*.apk
