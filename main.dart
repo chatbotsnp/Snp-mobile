@@ -12,7 +12,9 @@ class SNPChatbotApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SNP Chatbot',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
       home: const ChatScreen(),
     );
   }

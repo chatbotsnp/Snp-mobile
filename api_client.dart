@@ -1,22 +1,37 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
   final String baseUrl;
   ApiClient(this.baseUrl);
 
-  Future<String> sendMessage(String message) async {
+  Future<String?> loginGuest() async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/chat'),
-        body: {'message': message},
-      );
-      if (response.statusCode == 200) {
-        return response.body;
-      } else {
-        return 'Lỗi server: ${response.statusCode}';
+      final res = await http.post(Uri.parse("\$baseUrl/auth/login"));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data["token"];
       }
     } catch (e) {
-      return 'Không thể kết nối: $e';
+      return null;
     }
+    return null;
+  }
+
+  Future<String?> ask(String token, String question) async {
+    try {
+      final res = await http.post(
+        Uri.parse("\$baseUrl/ask"),
+        headers: {"Authorization": "Bearer \$token"},
+        body: {"question": question},
+      );
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data["answer"];
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
   }
 }
