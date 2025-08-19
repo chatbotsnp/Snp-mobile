@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'screens/chat_screen.dart';
+import 'screens/login_screen.dart';
 
-void main() {
-  runApp(const SNPChatbotApp());
-}
+void main() => runApp(const SNPApp());
 
-class SNPChatbotApp extends StatelessWidget {
-  const SNPChatbotApp({super.key});
+class SNPApp extends StatelessWidget {
+  const SNPApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SNP Chatbot',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF005BAC),
       ),
-      home: const ChatScreen(),
+      home: const LoginScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

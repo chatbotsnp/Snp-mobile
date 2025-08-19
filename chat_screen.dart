@@ -1,75 +1,106 @@
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import '../services/qa_service.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String displayName;
+  final bool isEmployee;
+  const ChatScreen({super.key, required this.displayName, required this.isEmployee});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _backendController = TextEditingController();
-  final TextEditingController _questionController = TextEditingController();
-  String _response = "";
-  String? _token;
+  final _messageCtrl = TextEditingController();
+  final List<_Msg> _messages = [];
+  bool _ready = false;
 
-  void _loginGuest() async {
-    final client = ApiClient(_backendController.text);
-    final token = await client.loginGuest();
-    setState(() {
-      _token = token;
-      _response = token != null ? "Login Guest thành công!" : "Login thất bại";
+  @override
+  void initState() {
+    super.initState();
+    QaService.instance.init().then((_) {
+      setState(() => _ready = true);
+      _addBot('Xin chào ${widget.displayName}! Hãy nhập câu hỏi về quy trình/ANC…');
     });
   }
 
-  void _ask() async {
-    if (_token == null) {
-      setState(() => _response = "Bạn cần login trước");
-      return;
-    }
-    final client = ApiClient(_backendController.text);
-    final answer = await client.ask(_token!, _questionController.text);
-    setState(() => _response = answer ?? "Lỗi khi hỏi");
+  void _addUser(String t) {
+    setState(() => _messages.add(_Msg(t, true)));
+  }
+
+  void _addBot(String t) {
+    setState(() => _messages.add(_Msg(t, false)));
+  }
+
+  Future<void> _send() async {
+    final q = _messageCtrl.text.trim();
+    if (q.isEmpty || !_ready) return;
+    _messageCtrl.clear();
+    _addUser(q);
+    final ans = await QaService.instance.answer(q, isEmployee: widget.isEmployee);
+    _addBot(ans);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SNP Chatbot")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _backendController,
-              decoration: const InputDecoration(
-                labelText: "Backend URL",
+      appBar: AppBar(title: const Text('SNP Chatbot')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _messages.length,
+              itemBuilder: (context, i) {
+                final m = _messages[i];
+                final align = m.isUser ? Alignment.centerRight : Alignment.centerLeft;
+                final color = m.isUser ? Theme.of(context).colorScheme.primaryContainer : Colors.grey.shade200;
+                return Align(
+                  alignment: align,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(m.text),
+                  ),
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Nhập câu hỏi…',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _send,
+                    child: const Icon(Icons.send),
+                  )
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _loginGuest,
-              child: const Text("Đăng nhập Khách"),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _questionController,
-              decoration: const InputDecoration(
-                labelText: "Nhập câu hỏi",
-              ),
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _ask,
-              child: const Text("Hỏi"),
-            ),
-            const SizedBox(height: 16),
-            Text("Trả lời: $_response"),
-          ],
-        ),
+          )
+        ],
       ),
     );
   }
+}
+
+class _Msg {
+  final String text;
+  final bool isUser;
+  _Msg(this.text, this.isUser);
 }

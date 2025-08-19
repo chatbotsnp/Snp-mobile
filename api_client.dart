@@ -2,36 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-  final String baseUrl;
-  ApiClient(this.baseUrl);
+  final String base;
+  ApiClient(this.base);
 
-  Future<String?> loginGuest() async {
-    try {
-      final res = await http.post(Uri.parse("\$baseUrl/auth/login"));
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        return data["token"];
-      }
-    } catch (e) {
-      return null;
-    }
-    return null;
-  }
-
-  Future<String?> ask(String token, String question) async {
-    try {
-      final res = await http.post(
-        Uri.parse("\$baseUrl/ask"),
-        headers: {"Authorization": "Bearer \$token"},
-        body: {"question": question},
-      );
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        return data["answer"];
-      }
-    } catch (e) {
-      return null;
-    }
-    return null;
+  Future<Map<String, dynamic>> ask(String question, {String? token}) async {
+    final r = await http.post(Uri.parse('$base/ask'),
+        headers: {'Content-Type':'application/json', if (token != null) 'Authorization':'Bearer $token'},
+        body: jsonEncode({'question': question}));
+    return jsonDecode(r.body) as Map<String, dynamic>;
   }
 }
