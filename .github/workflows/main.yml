@@ -1,8 +1,7 @@
-
 name: Build Android APK (SNP Chatbot)
 
 on:
-  workflow_dispatch:  # chạy tay
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,49 +14,16 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.22.0'
 
-      - name: Create Flutter project scaffold
-        run: flutter create mobile
-
-      # GIẢI NÉN 2 ZIP (đặt sẵn ở root repo)
-      - name: Unzip app_lib & assets if present
-        run: |
-          if [ -f app_lib_v2.zip ]; then
-            unzip -o app_lib_v2.zip -d .
-            mv -f app_lib_v2 app_lib || true
-          fi
-          if [ -f app_assets.zip ]; then
-            unzip -o app_assets.zip -d .
-            # đưa assets vào mobile/assets
-            mkdir -p mobile/assets
-            cp -R app_assets/. mobile/assets/
-          fi
-
-      # Chép mã nguồn vào mobile/lib nếu có app_lib
-      - name: Copy our Flutter code (if exists)
-        run: |
-          if [ -d app_lib ]; then
-            rm -rf mobile/lib
-            mkdir -p mobile/lib
-            cp -R app_lib/. mobile/lib/
-          fi
-
-      # Khai báo assets trong pubspec.yaml
-      - name: Enable assets in pubspec
-        run: |
-          sed -i 's/  uses-material-design: true/  uses-material-design: true\n  assets:\n    - assets\/faq_public.json\n    - assets\/faq_internal.json/' mobile/pubspec.yaml
-
-      - name: Get dependencies
-        working-directory: mobile
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK (release)
-        working-directory: mobile
+      - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SNP-Chatbot-APK
-          path: mobile/build/app/outputs/flutter-apk/*.apk
+          name: snp-chatbot-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
