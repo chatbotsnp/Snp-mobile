@@ -1,29 +1,56 @@
-
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'chat_screen.dart';
 
-void main() {
-  runApp(const SnPApp());
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class SnPApp extends StatelessWidget {
-  const SnPApp({super.key});
+class _LoginScreenState extends State<LoginScreen> {
+  bool isInternal = false;
 
   @override
   Widget build(BuildContext context) {
-    const snpBlue = Color(0xFF0057A3);
-    const snpAccent = Color(0xFFD71F26);
-
-    return MaterialApp(
-      title: 'SNP Chatbot',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: snpBlue)
-            .copyWith(secondary: snpAccent),
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
+    return Scaffold(
+      appBar: AppBar(title: const Text('SNP Chatbot')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            const Text(
+              'Chọn chế độ tra cứu',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Khách hàng (Public)')),
+                ButtonSegment(value: true, label: Text('Nhân viên (Internal)')),
+              ],
+              selected: {isInternal},
+              onSelectionChanged: (s) => setState(() => isInternal = s.first),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.chat),
+                label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Bắt đầu chat'),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => ChatScreen(isInternal: isInternal)),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      home: const LoginScreen(),
     );
   }
 }
