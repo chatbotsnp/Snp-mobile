@@ -1,4 +1,4 @@
-
+# trigger wordflow
 name: Build Android APK (SNP Chatbot)
 
 on:
@@ -63,3 +63,4 @@ jobs:
         with:
           name: snp-chatbot-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+#
