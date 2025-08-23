@@ -1,14 +1,10 @@
 [
   {
-    "q": "báo cáo an ninh tuần",
-    "a": "Nhân viên phòng Tham mưu cập nhật biểu mẫu ANC-07 trước 16:00 thứ Sáu hàng tuần."
+    "q": "Quy trình xử lý sự cố an ninh mức 1",
+    "a": "Báo cáo Tổ TT-AN, kích hoạt quy trình theo ANC-01, lập biên bản, lưu log vào hệ thống PSAFE, thông báo trưởng ca."
   },
   {
-    "q": "quy trình ANC kiểm soát phương tiện",
-    "a": "Áp dụng Quy trình ANC-03 phiên bản 1.4. Kiểm tra CCCD, giấy tờ, niêm phong; chụp ảnh camera trước-khi-sau."
-  },
-  {
-    "q": "psafe sự cố đăng nhập",
-    "a": "Liên hệ quản trị hệ thống PSAFE, reset mật khẩu qua cổng nội bộ; lưu nhật ký theo biểu mẫu IT-04."
+    "q": "Hướng dẫn đăng ký thẻ nội bộ",
+    "a": "Nhân viên điền form đăng ký, kèm hình 3x4, xác nhận của trưởng đơn vị. Bộ phận nhân sự phát hành thẻ theo quy định."
   }
 ]
