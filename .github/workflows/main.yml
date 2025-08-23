@@ -1,3 +1,4 @@
+
 name: Build Android APK (SNP Chatbot)
 
 on:
@@ -14,15 +15,50 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.1'
+          channel: stable
 
-      - name: Install dependencies
+      # Nếu repo chưa có pubspec.yaml thì tạo project Flutter rỗng
+      - name: Create Flutter project scaffold
+        run: |
+          if [ ! -f pubspec.yaml ]; then
+            flutter create snp_app
+            shopt -s dotglob
+            mv snp_app/* .
+            rm -rf snp_app
+          fi
+
+      # Đưa code .dart của bạn vào đúng thư mục lib/
+      - name: Place Dart sources
+        run: |
+          mkdir -p lib/screens lib/services
+          if [ -f main.dart ]; then mv -f main.dart lib/main.dart; fi
+          if [ -f login_screen.dart ]; then mv -f login_screen.dart lib/screens/login_screen.dart; fi
+          if [ -f chat_screen.dart ]; then mv -f chat_screen.dart lib/screens/chat_screen.dart; fi
+          if [ -f qa_service.dart ]; then mv -f qa_service.dart lib/services/qa_service.dart; fi
+          if [ -f api_client.dart ]; then mv -f api_client.dart lib/services/api_client.dart; fi
+
+      # Đưa data JSON vào assets/
+      - name: Place assets
+        run: |
+          mkdir -p assets
+          if [ -f faq_public.json ]; then mv -f faq_public.json assets/faq_public.json; fi
+          if [ -f faq_internal.json ]; then mv -f faq_internal.json assets/faq_internal.json; fi
+
+      # Khai báo assets trong pubspec.yaml (chỉ thêm nếu chưa có)
+      - name: Enable assets in pubspec
+        run: |
+          if ! grep -q "assets/faq_public.json" pubspec.yaml; then
+            awk '1;/uses-material-design: true/{print "  assets:\n    - assets/faq_public.json\n    - assets/faq_internal.json"}' pubspec.yaml > pubspec.yaml.new
+            mv pubspec.yaml.new pubspec.yaml
+          fi
+
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK (release)
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: snp-chatbot-apk
