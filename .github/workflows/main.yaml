@@ -6,36 +6,52 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'   # phiên bản ổn định
+          channel: stable
+          # flutter-version: '3.22.2' # có thể bỏ dòng này nếu không cần cố định
 
-      # Tạo project rỗng tên "mobile"
-      - name: Create Flutter project scaffold
-        run: flutter create mobile
+      - name: Flutter version
+        run: flutter --version
 
-      # Chép code của ta (trong repo) vào project vừa tạo
-      - name: Copy our Flutter code into project
+      # Luôn đảm bảo có project con "mobile/"
+      - name: Create Flutter scaffold if missing
+        run: |
+          if [ ! -d "mobile" ]; then
+            flutter create mobile
+          fi
+
+      # Chép code/app_lib vào dự án con
+      - name: Copy app code + pubspec + assets into mobile
         run: |
           rm -rf mobile/lib
-          mkdir -p mobile/lib
-          cp -r app_lib/lib/. mobile/lib/
-          cp app_lib/pubspec.yaml mobile/pubspec.yaml
           mkdir -p mobile/assets
-          cp -r app_lib/assets/. mobile/assets/
+          cp -r app_lib/lib/. mobile/lib/
+          cp -r app_lib/assets/. mobile/assets/ || true
+          cp app_lib/pubspec.yaml mobile/pubspec.yaml
+          echo "✅ Copied app_lib into mobile/"
 
-      - name: Install dependencies
-        working-directory: mobile
-        run: flutter pub get
+      - name: Get dependencies
+        run: |
+          cd mobile
+          flutter pub get
 
       - name: Build APK (release)
-        working-directory: mobile
-        run: flutter build apk --release
+        run: |
+          cd mobile
+          flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
