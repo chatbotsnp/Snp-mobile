@@ -1,4 +1,3 @@
-# trigger wordflow
 name: Build Android APK (SNP Chatbot)
 
 on:
@@ -15,52 +14,48 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.22.3'
 
-      # Nếu repo chưa có pubspec.yaml thì tạo project Flutter rỗng
-      - name: Create Flutter project scaffold
+      # Tạo project Flutter trống tên "mobile"
+      - name: Create Flutter project
+        run: flutter create mobile
+
+      # Chép code Dart của bạn (đang ở root repo) vào mobile/lib
+      - name: Copy app code
         run: |
-          if [ ! -f pubspec.yaml ]; then
-            flutter create snp_app
-            shopt -s dotglob
-            mv snp_app/* .
-            rm -rf snp_app
-          fi
+          rm -rf mobile/lib/*
+          mkdir -p mobile/lib
+          cp main.dart mobile/lib/
+          cp login_screen.dart mobile/lib/
+          cp chat_screen.dart mobile/lib/
+          cp qa_service.dart mobile/lib/
 
-      # Đưa code .dart của bạn vào đúng thư mục lib/
-      - name: Place Dart sources
+      # Chép dữ liệu FAQ vào assets
+      - name: Copy FAQ assets
         run: |
-          mkdir -p lib/screens lib/services
-          if [ -f main.dart ]; then mv -f main.dart lib/main.dart; fi
-          if [ -f login_screen.dart ]; then mv -f login_screen.dart lib/screens/login_screen.dart; fi
-          if [ -f chat_screen.dart ]; then mv -f chat_screen.dart lib/screens/chat_screen.dart; fi
-          if [ -f qa_service.dart ]; then mv -f qa_service.dart lib/services/qa_service.dart; fi
-          if [ -f api_client.dart ]; then mv -f api_client.dart lib/services/api_client.dart; fi
+          mkdir -p mobile/assets
+          cp faq_public.json mobile/assets/
+          cp faq_internal.json mobile/assets/
 
-      # Đưa data JSON vào assets/
-      - name: Place assets
-        run: |
-          mkdir -p assets
-          if [ -f faq_public.json ]; then mv -f faq_public.json assets/faq_public.json; fi
-          if [ -f faq_internal.json ]; then mv -f faq_internal.json assets/faq_internal.json; fi
-
-      # Khai báo assets trong pubspec.yaml (chỉ thêm nếu chưa có)
+      # Khai báo assets trong pubspec.yaml
       - name: Enable assets in pubspec
         run: |
-          if ! grep -q "assets/faq_public.json" pubspec.yaml; then
-            awk '1;/uses-material-design: true/{print "  assets:\n    - assets/faq_public.json\n    - assets/faq_internal.json"}' pubspec.yaml > pubspec.yaml.new
-            mv pubspec.yaml.new pubspec.yaml
-          fi
+          awk '1;/flutter:/{print "  assets:\n    - assets/"; exit}' mobile/pubspec.yaml > /tmp/pubspec.yaml
+          cat /tmp/pubspec.yaml > mobile/pubspec.yaml
 
-      - name: Get dependencies
+      # Cài dependency (nếu sau này bạn cần package khác, thêm vào pubspec.yaml trước bước này)
+      - name: Flutter pub get
+        working-directory: mobile
         run: flutter pub get
 
+      # Build APK release
       - name: Build APK (release)
+        working-directory: mobile
         run: flutter build apk --release
 
+      # Upload file APK (dùng v4 mới, tránh lỗi deprecated)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: snp-chatbot-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-#
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
