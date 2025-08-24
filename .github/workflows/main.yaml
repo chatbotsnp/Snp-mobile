@@ -8,66 +8,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Show repo files (debug)
-        run: ls -la
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.3'
 
-      # TẠO project Flutter sạch tên "mobile"
+      # Tạo project Flutter trống tên "mobile"
       - name: Create Flutter project
         run: flutter create mobile
 
-      - name: List mobile structure (debug)
-        run: ls -la mobile && ls -la mobile/lib
-
-      # CHÉP CODE DART của bạn (đang ở root repo) vào thư mục lib của project
-      - name: Copy app code
-        run: |
-          rm -rf mobile/lib/*
-          mkdir -p mobile/lib
-          cp main.dart mobile/lib/ || true
-          cp login_screen.dart mobile/lib/ || true
-          cp chat_screen.dart mobile/lib/ || true
-          cp qa_service.dart mobile/lib/ || true
-          cp api_client.dart mobile/lib/ || true
-          echo "Copied Dart files:"
-          ls -la mobile/lib
-
-      # CHÉP DỮ LIỆU FAQ vào assets (nếu có)
-      - name: Copy FAQ assets
-        run: |
-          mkdir -p mobile/assets
-          cp faq_public.json mobile/assets/ || true
-          cp faq_internal.json mobile/assets/ || true
-          echo "Assets:"
-          ls -la mobile/assets
-
-      # KHAI BÁO assets trong pubspec.yaml
-      - name: Enable assets in pubspec
-        run: |
-          awk '1;/^flutter:/{print "  assets:\n    - assets/"; exit}' mobile/pubspec.yaml > /tmp/pubspec.yaml
-          cat /tmp/pubspec.yaml > mobile/pubspec.yaml
-          echo "==== pubspec.yaml ===="
-          sed -n '1,160p' mobile/pubspec.yaml
-
-      # CÀI DEPENDENCIES
+      # Cài dependency
       - name: Flutter pub get
         working-directory: mobile
         run: flutter pub get
 
-      # BUILD DEBUG trước cho chắc (không cần ký)
+      # Build APK (debug để khỏi cần ký)
       - name: Build APK (debug)
         working-directory: mobile
         run: flutter build apk --debug
 
-      # UPLOAD APK
-      - name: Upload APK artifact
+      # Upload file APK để tải về test
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: snp-chatbot-apk
