@@ -1,10 +1,10 @@
 [
   {
-    "q": "Quy trình vào cảng cần giấy tờ gì?",
-    "a": "Khách hàng cần CCCD/CMND hợp lệ, giấy giới thiệu (nếu có), thông tin lô hàng và mã đặt chỗ. Vui lòng theo chỉ dẫn bảo vệ tại cổng."
+    "question": "Quy trình kiểm soát an ninh cảng (ANC) gồm những bước chính nào?",
+    "answer": "Gồm 5 bước: (1) Tiếp nhận thông tin; (2) Kiểm tra hồ sơ/giấy tờ; (3) Kiểm tra thực tế/soi chiếu; (4) Ghi nhận & bàn giao; (5) Lưu vết & báo cáo."
   },
   {
-    "q": "Giờ làm việc của cảng",
-    "a": "Cảng làm việc 24/7. Các quầy dịch vụ khách hàng làm việc giờ hành chính, một số quầy có tăng cường theo kế hoạch."
+    "question": "Khách đến làm thủ tục cần xuất trình giấy tờ gì?",
+    "answer": "CMND/CCCD hoặc hộ chiếu còn hiệu lực, giấy giới thiệu hoặc mã đặt chỗ theo quy định từng khu vực."
   }
 ]
