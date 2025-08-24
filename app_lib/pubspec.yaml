@@ -1,1 +1,24 @@
+name: snp_chatbot
+description: SNP Chatbot demo (public & internal FAQs + simple login)
+publish_to: "none"
+version: 1.0.0+1
 
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  flutter_markdown: ^0.7.3
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/faq_public.json
+    - assets/faq_internal.json
