@@ -6,33 +6,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.3'
+          flutter-version: '3.22.2'   # phiên bản ổn định
 
-      # Tạo project Flutter trống tên "mobile"
-      - name: Create Flutter project
+      # Tạo project rỗng tên "mobile"
+      - name: Create Flutter project scaffold
         run: flutter create mobile
 
-      # Cài dependency
-      - name: Flutter pub get
+      # Chép code của ta (trong repo) vào project vừa tạo
+      - name: Copy our Flutter code into project
+        run: |
+          rm -rf mobile/lib
+          mkdir -p mobile/lib
+          cp -r app_lib/lib/. mobile/lib/
+          cp app_lib/pubspec.yaml mobile/pubspec.yaml
+          mkdir -p mobile/assets
+          cp -r app_lib/assets/. mobile/assets/
+
+      - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
 
-      # Build APK (debug để khỏi cần ký)
-      - name: Build APK (debug)
+      - name: Build APK (release)
         working-directory: mobile
-        run: flutter build apk --debug
+        run: flutter build apk --release
 
-      # Upload file APK để tải về test
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: snp-chatbot-apk
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
