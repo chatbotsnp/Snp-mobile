@@ -1,10 +1,10 @@
 [
   {
-    "q": "Quy trình xử lý sự cố an ninh mức 1",
-    "a": "Báo cáo Tổ TT-AN, kích hoạt quy trình theo ANC-01, lập biên bản, lưu log vào hệ thống PSAFE, thông báo trưởng ca."
+    "question": "PSAFE C3 dùng để làm gì?",
+    "answer": "PSAFE C3 hỗ trợ huấn luyện, kiểm tra kiến thức an ninh & an toàn cảng cho nhân viên nội bộ."
   },
   {
-    "q": "Hướng dẫn đăng ký thẻ nội bộ",
-    "a": "Nhân viên điền form đăng ký, kèm hình 3x4, xác nhận của trưởng đơn vị. Bộ phận nhân sự phát hành thẻ theo quy định."
+    "question": "Khi phát hiện vi phạm an ninh tại cổng, quy trình xử lý nhanh là gì?",
+    "answer": "Báo bộ phận trực; cách ly đối tượng/khu vực; lập biên bản; ghi hình; báo cáo theo mẫu NB-ANC-01; cập nhật nhật ký sự cố trong 24 giờ."
   }
 ]
