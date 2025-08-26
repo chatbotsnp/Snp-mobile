@@ -1,28 +1,39 @@
-import 'dart:convert';
-import 'package:flutter/services.dart';
+final inter = ta.intersection(tb).length.toDouble();
+    final denom = (ta.length + tb.length - inter).toDouble();
+    final jaccard = denom == 0 ? 0 : inter / denom;
 
-class QaService {
-  Map<String, String> _publicData = {};
-  Map<String, String> _internalData = {};
+    // bonus nếu từ khoá đầu/đuôi trùng
+    final wordsA = a.split(' ');
+    final wordsB = b.split(' ');
+    final headBonus = (wordsA.isNotEmpty && wordsB.isNotEmpty && wordsA.first == wordsB.first) ? 0.05 : 0.0;
+    final tailBonus = (wordsA.isNotEmpty && wordsB.isNotEmpty && wordsA.last == wordsB.last) ? 0.05 : 0.0;
 
-  QaService() {
-    _loadData();
+    return (jaccard + headBonus + tailBonus).clamp(0.0, 1.0);
   }
 
-  Future<void> _loadData() async {
-    String publicJson = await rootBundle.loadString('assets/faq_public.json');
-    String internalJson = await rootBundle.loadString('assets/faq_internal.json');
+  /// Bỏ dấu tiếng Việt (bản rút gọn đủ tốt cho demo)
+  String _removeDiacritics(String str) {
+    const src = 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệ'
+        'ìíỉĩịòóỏõọôồốổỗộơờớởỡợ'
+        'ùúủũụưừứửữựỳýỷỹỵđ'
+        'ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆ'
+        'ÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ'
+        'ÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ';
+    const dst = 'aaaaaaaaaaaaaaaaaeeeeeeeeeee'
+        'iiiiiooooooooooooooo'
+        'uuuuuuuuuu yyyyyd'
+        'AAAAAAAAAAAAAAAAAEEEEEEEEEEE'
+        'IIIII OOOOOOOOOOOOO'
+        'UUUUUUUUUU YYYYYD';
 
-    _publicData = Map<String, String>.from(json.decode(publicJson));
-    _internalData = Map<String, String>.from(json.decode(internalJson));
-  }
-
-  String getAnswer(String question) {
-    if (_publicData.containsKey(question)) {
-      return _publicData[question]!;
-    } else if (_internalData.containsKey(question)) {
-      return _internalData[question]!;
+    final map = <String, String>{};
+    for (int i = 0; i < src.length; i++) {
+      map[src[i]] = dst[i];
     }
-    return "Xin lỗi, tôi chưa có thông tin về câu hỏi này.";
+    final sb = StringBuffer();
+    for (final ch in str.split('')) {
+      sb.write(map[ch] ?? ch);
+    }
+    return sb.toString().replaceAll('  ', ' ').trim();
   }
 }
