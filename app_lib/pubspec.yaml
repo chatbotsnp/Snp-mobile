@@ -20,5 +20,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    flutter:
+  uses-material-design: true
+  assets:
     - assets/faq_public.json
     - assets/faq_internal.json
+    - assets/knowledge_public.jsonl
+    - assets/knowledge_internal.jsonl
