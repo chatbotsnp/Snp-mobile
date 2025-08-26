@@ -1,39 +1,48 @@
-final inter = ta.intersection(tb).length.toDouble();
-    final denom = (ta.length + tb.length - inter).toDouble();
-    final jaccard = denom == 0 ? 0 : inter / denom;
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
-    // bonus nếu từ khoá đầu/đuôi trùng
-    final wordsA = a.split(' ');
-    final wordsB = b.split(' ');
-    final headBonus = (wordsA.isNotEmpty && wordsB.isNotEmpty && wordsA.first == wordsB.first) ? 0.05 : 0.0;
-    final tailBonus = (wordsA.isNotEmpty && wordsB.isNotEmpty && wordsA.last == wordsB.last) ? 0.05 : 0.0;
+class QAItem {
+  final String question;
+  final String answer;
 
-    return (jaccard + headBonus + tailBonus).clamp(0.0, 1.0);
+  QAItem({required this.question, required this.answer});
+
+  factory QAItem.fromJson(Map<String, dynamic> json) {
+    // Hỗ trợ nhiều cách đặt key trong file JSON
+    final q = (json['q'] ?? json['question'] ?? '').toString();
+    final a = (json['a'] ?? json['answer'] ?? json['return'] ?? '').toString();
+    return QAItem(question: q, answer: a);
+  }
+}
+
+class QAService {
+  List<QAItem> _items = [];
+
+  Future<void> loadFromAssets() async {
+    final publicStr = await rootBundle.loadString('assets/faq_public.json');
+    final internalStr = await rootBundle.loadString('assets/faq_internal.json');
+
+    final list = <QAItem>[];
+    for (final s in [publicStr, internalStr]) {
+      final data = json.decode(s);
+      if (data is List) {
+        for (final e in data) {
+          if (e is Map<String, dynamic>) list.add(QAItem.fromJson(e));
+        }
+      } else if (data is Map<String, dynamic> && data['items'] is List) {
+        for (final e in (data['items'] as List)) {
+          if (e is Map<String, dynamic>) list.add(QAItem.fromJson(e));
+        }
+      }
+    }
+    _items = list;
   }
 
-  /// Bỏ dấu tiếng Việt (bản rút gọn đủ tốt cho demo)
-  String _removeDiacritics(String str) {
-    const src = 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệ'
-        'ìíỉĩịòóỏõọôồốổỗộơờớởỡợ'
-        'ùúủũụưừứửữựỳýỷỹỵđ'
-        'ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆ'
-        'ÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ'
-        'ÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ';
-    const dst = 'aaaaaaaaaaaaaaaaaeeeeeeeeeee'
-        'iiiiiooooooooooooooo'
-        'uuuuuuuuuu yyyyyd'
-        'AAAAAAAAAAAAAAAAAEEEEEEEEEEE'
-        'IIIII OOOOOOOOOOOOO'
-        'UUUUUUUUUU YYYYYD';
-
-    final map = <String, String>{};
-    for (int i = 0; i < src.length; i++) {
-      map[src[i]] = dst[i];
-    }
-    final sb = StringBuffer();
-    for (final ch in str.split('')) {
-      sb.write(map[ch] ?? ch);
-    }
-    return sb.toString().replaceAll('  ', ' ').trim();
+  List<QAItem> search(String query) {
+    final q = query.toLowerCase();
+    return _items.where((it) =>
+      it.question.toLowerCase().contains(q) ||
+      it.answer.toLowerCase().contains(q)
+    ).toList();
   }
 }
