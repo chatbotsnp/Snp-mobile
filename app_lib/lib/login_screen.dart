@@ -1,43 +1,45 @@
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
+import 'qa_service.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _controller = TextEditingController();
-
-  void _login() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ChatScreen(user: _controller.text)),
+  void _go(BuildContext context, UserRole role) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ChatScreen(role: role)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Đăng nhập SNP Chatbot")),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: "Nhập tên hoặc mã nhân viên",
+      appBar: AppBar(title: const Text('Chọn vai trò để vào chat')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _go(context, UserRole.public),
+                icon: const Icon(Icons.public),
+                label: const Text('Tôi là KHÁCH HÀNG'),
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text("Đăng nhập"),
-            ),
-          ],
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => _go(context, UserRole.internal),
+                icon: const Icon(Icons.badge),
+                label: const Text('Tôi là NHÂN VIÊN NỘI BỘ'),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Bản demo: dữ liệu lấy từ 2 file JSON trong assets.\n'
+                'Bạn có thể cập nhật nội dung và build lại bất kỳ lúc nào.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
