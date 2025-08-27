@@ -1,85 +1,91 @@
+// qa_service.dart
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'user_role.dart';
 
-/// Dịch vụ Q&A đơn giản đọc JSON từ assets và trả lời theo từ khóa
+/// Dịch vụ Q&A: nạp dữ liệu từ JSON và trả lời câu hỏi
 class QAService {
   final UserRole role;
-
-  /// Lưu data đã nạp: danh sách {q, a}
-  final List<Map<String, String>> _faqs = [];
+  List<_QA> _items = [];
 
   QAService({required this.role});
 
-  /// Nạp dữ liệu JSON theo role
+  /// Nạp JSON theo role (đường dẫn khớp pubspec.yaml)
   Future<void> load() async {
-    final path = role == UserRole.internal
-        ? 'assets/faq_internal.json'
-        : 'assets/faq_public.json';
+    final asset = role == UserRole.internal
+        ? 'app_lib/assets/faq_internal.json'
+        : 'app_lib/assets/faq_public.json';
 
-    final raw = await rootBundle.loadString(path);
+    final raw = await rootBundle.loadString(asset);
     final data = jsonDecode(raw);
 
-    _faqs.clear();
-
-    // Chấp nhận cả 2 dạng: LIST các item {q, a} hoặc MAP {question: answer}
     if (data is List) {
-      for (final item in data) {
-        if (item is Map) {
-          final q = (item['q'] ?? item['question'] ?? '').toString();
-          final a = (item['a'] ?? item['answer'] ?? '').toString();
-          if (q.isNotEmpty && a.isNotEmpty) {
-            _faqs.add({'q': q, 'a': a});
-          }
-        }
-      }
-    } else if (data is Map) {
-      data.forEach((k, v) {
-        final q = k.toString();
-        final a = v.toString();
-        if (q.isNotEmpty && a.isNotEmpty) {
-          _faqs.add({'q': q, 'a': a});
-        }
-      });
+      _items = data.map<_QA>((e) => _QA.fromJson(Map<String, dynamic>.from(e))).toList();
+    } else if (data is Map && data['items'] is List) {
+      _items = (data['items'] as List)
+          .map<_QA>((e) => _QA.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else {
+      _items = [];
     }
   }
 
-  /// Trả lời nhanh theo khớp từ khóa thô (contains, không phân biệt hoa thường)
+  /// Trả lời câu hỏi (matching đơn giản, đủ chạy demo)
   Future<String> answer(String question) async {
-    if (_faqs.isEmpty) {
-      // Phòng trường hợp quên gọi load()
+    if (_items.isEmpty) {
       await load();
     }
+    final q = question.toLowerCase();
 
-    final qLower = question.toLowerCase().trim();
+    _QA? best;
+    var bestScore = -1;
 
-    // 1) Khớp “câu hỏi chứa nhau”
-    for (final item in _faqs) {
-      final cand = (item['q'] ?? '').toLowerCase();
-      if (cand.isNotEmpty && (qLower.contains(cand) || cand.contains(qLower))) {
-        return item['a'] ?? '';
+    for (final item in _items) {
+      final sMain = _score(item.question.toLowerCase(), q);
+      if (sMain > bestScore) {
+        best = item;
+        bestScore = sMain;
+      }
+      for (final v in item.variants) {
+        final sVar = _score(v.toLowerCase(), q);
+        if (sVar > bestScore) {
+          best = item;
+          bestScore = sVar;
+        }
       }
     }
 
-    // 2) Khớp theo từ khóa đơn giản (tách từ, đếm trùng)
-    int bestScore = 0;
-    String? bestAnswer;
-    final words = qLower.split(RegExp(r'\s+')).where((w) => w.length >= 3);
-    for (final item in _faqs) {
-      final cand = (item['q'] ?? '').toLowerCase();
-      int score = 0;
-      for (final w in words) {
-        if (cand.contains(w)) score++;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestAnswer = item['a'];
-      }
-    }
-    if (bestScore > 0 && bestAnswer != null) return bestAnswer!;
-
-    // 3) Không tìm thấy
-    return 'Xin lỗi, mình chưa có câu trả lời phù hợp. '
-        'Bạn thử đặt câu hỏi chi tiết hơn hoặc dùng từ khóa khác nhé.';
+    return best?.answer ??
+        "Mình chưa có câu trả lời phù hợp. Bạn mô tả rõ hơn giúp mình nhé?";
   }
+
+  // Điểm khớp rất đơn giản: bằng nhau > chứa nhau > trùng từ
+  int _score(String a, String b) {
+    if (a == b) return 1000;
+    if (a.contains(b) || b.contains(a)) return 500;
+    final sa = a.split(RegExp(r'\s+')).toSet();
+    final sb = b.split(RegExp(r'\s+')).toSet();
+    return sa.intersection(sb).length; // 0..n
+  }
+}
+
+/// Model Q&A (linh hoạt khóa: q/question, a/answer, variants[])
+class _QA {
+  final String question;
+  final String answer;
+  final List<String> variants;
+
+  _QA({
+    required this.question,
+    required this.answer,
+    required this.variants,
+  });
+
+  factory _QA.fromJson(Map<String, dynamic> json) => _QA(
+        question: (json['q'] ?? json['question'] ?? '').toString(),
+        answer: (json['a'] ?? json['answer'] ?? '').toString(),
+        variants: json['variants'] is List
+            ? (json['variants'] as List).map((e) => e.toString()).toList()
+            : <String>[],
+      );
 }
