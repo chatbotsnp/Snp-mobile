@@ -1,1 +1,12 @@
-
+{
+  "content": {
+    "public": "",
+    "internal": ""
+  },
+  "features": {
+    "chat": true,
+    "faq": true,
+    "lookup": true,
+    "notify": true
+  }
+}
