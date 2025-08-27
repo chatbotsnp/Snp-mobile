@@ -22,5 +22,6 @@ flutter:
   assets:
     - assets/faq_public.json
     - assets/faq_internal.json
+    - assets/config.json
     - assets/knowledge_public.jsonl
     - assets/knowledge_internal.jsonl
