@@ -208,6 +208,21 @@ class _TasksScreenState extends State<TasksScreen> {
                                       Text('Cập nhật: ${_fmtDT(t.updatedAt!)}'),
                                   ],
                                 ),
+                                trailing: t.status != 'done'
+                                    ? IconButton(
+                                        icon: const Icon(Icons.check_circle, color: Colors.green),
+                                        tooltip: 'Đánh dấu hoàn thành',
+                                        onPressed: () async {
+                                          await _svc.markDone(t.id);
+                                          await _applyFilter();
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Đã hoàn thành task ${t.id}')),
+                                            );
+                                          }
+                                        },
+                                      )
+                                    : null,
                               );
                             },
                           ),
