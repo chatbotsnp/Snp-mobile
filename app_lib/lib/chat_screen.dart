@@ -10,96 +10,107 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _controller = TextEditingController();
-  final _messages = <_Msg>[];
-  late QAService _qa;
-  bool _loading = false;
+  final TextEditingController _ctrl = TextEditingController();
+  late final QAService _qa = QAService(role: widget.role);
+  final List<_Msg> _messages = [];
+  bool _sending = false;
+
+  String get _title =>
+      widget.role == UserRole.public ? 'Chatbot – Khách hàng' : 'Chatbot – Nhân viên';
 
   @override
-  void initState() {
-    super.initState();
-    _qa = QAService(role: widget.role);
-    _qa.load(); // nạp sẵn
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+
     setState(() {
-      _messages.add(_Msg(text, true));
-      _controller.clear();
-      _loading = true;
+      _messages.add(_Msg(text: text, fromUser: true));
+      _sending = true;
+      _ctrl.clear();
     });
-    final ans = await _qa.answer(text);
-    if (!mounted) return;
-    setState(() {
-      _messages.add(_Msg(ans, false));
-      _loading = false;
-    });
+
+    try {
+      final answer = await _qa.answer(text);
+      setState(() => _messages.add(_Msg(text: answer, fromUser: false)));
+    } catch (e) {
+      setState(() => _messages.add(_Msg(
+            text: 'Có lỗi khi lấy câu trả lời. Bạn thử lại nhé.',
+            fromUser: false,
+          )));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.role == UserRole.public
-        ? 'Hỏi đáp Khách hàng'
-        : 'Hỏi đáp Nhân viên';
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _messages.length,
-              itemBuilder: (_, i) {
-                final m = _messages[i];
-                return Align(
-                  alignment:
-                      m.fromUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.all(12),
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    decoration: BoxDecoration(
-                      color: m.fromUser
-                          ? Colors.blue.shade100
-                          : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(m.text),
-                  ),
-                );
-              },
+      appBar: AppBar(title: Text(_title)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemBuilder: (_, i) {
+                  final m = _messages[i];
+                  final align = m.fromUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+                  final bg = m.fromUser ? Colors.indigo.shade50 : Colors.grey.shade200;
+                  return Column(
+                    crossAxisAlignment: align,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(m.text),
+                      ),
+                    ],
+                  );
+                },
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemCount: _messages.length,
+              ),
             ),
-          ),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(),
-            ),
-          SafeArea(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
                     child: TextField(
-                      controller: _controller,
+                      controller: _ctrl,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        hintText: 'Nhập câu hỏi…',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: 'Nhập câu hỏi...',
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                     ),
                   ),
-                ),
-                IconButton(onPressed: _send, icon: const Icon(Icons.send)),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _sending ? null : _send,
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -108,5 +119,5 @@ class _ChatScreenState extends State<ChatScreen> {
 class _Msg {
   final String text;
   final bool fromUser;
-  _Msg(this.text, this.fromUser);
+  _Msg({required this.text, required this.fromUser});
 }
