@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
-import 'user_role.dart';
+import 'qa_service.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -15,22 +15,20 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Chọn vai trò')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: Center(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ElevatedButton(
-              onPressed: () => _go(context, UserRole.public),
-              child: const Text('Khách hàng (Public)'),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => _go(context, UserRole.internal),
-              child: const Text('Nhân viên (Internal)'),
-            ),
+            _btn(context, 'Khách hàng (Public)', UserRole.public),
+            const SizedBox(height: 16),
+            _btn(context, 'Nhân viên (Internal)', UserRole.internal),
           ],
         ),
       ),
     );
+  }
+
+  Widget _btn(BuildContext context, String label, UserRole role) {
+    return ElevatedButton(onPressed: () => _go(context, role), child: Text(label));
   }
 }
