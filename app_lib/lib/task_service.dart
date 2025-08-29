@@ -5,6 +5,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import 'notification_service.dart';
+
 class TaskItem {
   final String id;
   final String title;
@@ -54,14 +56,32 @@ class TaskItem {
       updatedAt: parseDT(j['updated_at']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'dept': dept,
+    'assignees': assignees,
+    'start': start.toIso8601String(),
+    'end': end.toIso8601String(),
+    'status': status,
+    'color': colorHex,
+    'updated_at': updatedAt?.toIso8601String(),
+  };
 }
 
 class _Config {
   final bool remote;
   final String tasksUrl;
   final int timeoutSeconds;
+  final int notifyLeadMinutes; // nhắc trước X phút (mặc định 15)
 
-  _Config({required this.remote, required this.tasksUrl, required this.timeoutSeconds});
+  _Config({
+    required this.remote,
+    required this.tasksUrl,
+    required this.timeoutSeconds,
+    required this.notifyLeadMinutes,
+  });
 
   static Future<_Config> load() async {
     final raw = await rootBundle.loadString('assets/config.json');
@@ -70,6 +90,7 @@ class _Config {
       remote: (j['remote'] ?? false) == true,
       tasksUrl: (j['tasks_url'] ?? '').toString(),
       timeoutSeconds: int.tryParse('${j['timeout_seconds'] ?? 10}') ?? 10,
+      notifyLeadMinutes: int.tryParse('${j['notify_lead_minutes'] ?? 15}') ?? 15,
     );
   }
 }
@@ -81,6 +102,11 @@ class TaskService {
   Future<File> _cacheFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/tasks_cache.json');
+  }
+
+  Future<File> _logFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/tasks_log.json');
   }
 
   Future<void> _writeCache(String content) async {
@@ -122,6 +148,8 @@ class TaskService {
         _items = _parse(cached);
         _loaded = true;
         _refreshOnlineSilently(cfg);
+        // schedule nhắc cho dữ liệu hiện có
+        _scheduleNotifications(cfg);
         return;
       }
     }
@@ -137,6 +165,7 @@ class TaskService {
             _items = _parse(res.body);
             _loaded = true;
             await _writeCache(res.body);
+            _scheduleNotifications(cfg);
             return;
           }
         } catch (_) {}
@@ -148,6 +177,7 @@ class TaskService {
     _items = _parse(raw);
     _loaded = true;
     await _writeCache(raw);
+    _scheduleNotifications(cfg);
   }
 
   Future<void> refreshOnline() async => load(forceOnline: true);
@@ -157,12 +187,11 @@ class TaskService {
     return List<TaskItem>.from(_items);
   }
 
-  // ====== Bộ lọc ======
   Future<List<TaskItem>> filter({
     String? dept,
-    String? assigneeKeyword, // tên hoặc mã
-    String? query,           // từ khoá tự do trên title
-    String? status,          // scheduled/in_progress/done/canceled
+    String? assigneeKeyword,
+    String? query,
+    String? status,
     DateTime? from,
     DateTime? to,
   }) async {
@@ -189,19 +218,94 @@ class TaskService {
     }
 
     final list = _items.where(match).toList();
-    list.sort((a, b) => a.start.compareTo(b.start)); // gần nhất lên trước
+    list.sort((a, b) => a.start.compareTo(b.start));
     return list;
   }
 
-  void _refreshOnlineSilently(_Config cfg) async {
-    if (!cfg.remote || cfg.tasksUrl.isEmpty) return;
+  // ====== Actions ======
+  Future<void> markDone(String taskId) async {
+    final idx = _items.indexWhere((t) => t.id == taskId);
+    if (idx < 0) return;
+    final t = _items[idx];
+    final done = TaskItem(
+      id: t.id,
+      title: t.title,
+      dept: t.dept,
+      assignees: t.assignees,
+      start: t.start,
+      end: t.end,
+      status: 'done',
+      colorHex: t.colorHex,
+      updatedAt: DateTime.now(),
+    );
+    _items[idx] = done;
+
+    // lưu cache
+    final jsonStr = json.encode(_items.map((e) => e.toJson()).toList());
+    await _writeCache(jsonStr);
+
+    await _logAction(taskId, 'done');
+  }
+
+  Future<void> _logAction(String taskId, String action) async {
     try {
-      final res = await http
-          .get(Uri.parse(cfg.tasksUrl))
-          .timeout(Duration(seconds: cfg.timeoutSeconds));
-      if (res.statusCode == 200 && res.body.isNotEmpty) {
-        await _writeCache(res.body);
+      final f = await _logFile();
+      List list = [];
+      if (await f.exists()) {
+        final txt = await f.readAsString();
+        list = (json.decode(txt) as List?) ?? [];
       }
+      list.add({
+        'task_id': taskId,
+        'action': action,
+        'at': DateTime.now().toIso8601String(),
+      });
+      await f.writeAsString(json.encode(list), flush: true);
     } catch (_) {}
   }
+
+  // ====== Notifications scheduling ======
+  void _scheduleNotifications(_Config cfg) {
+    // Nhắc trước X phút so với start, và trước khi end nếu chưa done
+    final now = DateTime.now();
+
+    for (final t in _items) {
+      if (t.status == 'canceled' || t.status == 'done') continue;
+
+      final lead = Duration(minutes: cfg.notifyLeadMinutes);
+      final startWhen = t.start.subtract(lead);
+      if (startWhen.isAfter(now)) {
+        NotifService.schedule(
+          _idFrom('start_${t.id}'),
+          'Sắp đến: ${t.title}',
+          'Phòng ${t.dept} — bắt đầu ${_fmtShort(t.start)}',
+          startWhen,
+        );
+      }
+
+      // Nhắc trước end  (chỉ nếu end > now)
+      final endWhen = t.end.subtract(Duration(minutes: 5));
+      if (endWhen.isAfter(now)) {
+        NotifService.schedule(
+          _idFrom('end_${t.id}'),
+          'Sắp hết hạn: ${t.title}',
+          'Kết thúc lúc ${_fmtShort(t.end)}',
+          endWhen,
+        );
+      }
+    }
+  }
+
+  int _idFrom(String s) {
+    // Hash đơn giản ra số int cho notification id
+    var h = 0;
+    for (final codePoint in s.codeUnits) {
+      h = (h * 31 + codePoint) & 0x7fffffff;
+    }
+    return h;
+  }
+
+  String _fmtShort(DateTime dt) =>
+      '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')} '
+      '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
 }
