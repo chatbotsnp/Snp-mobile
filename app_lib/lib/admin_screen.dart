@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'employee_service.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -11,6 +10,13 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   final _svc = EmployeeService();
+
+  final _codeCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _deptCtrl = TextEditingController();
+  bool _isAdmin = false;
+  bool _isActive = true;
+
   List<Employee> _items = [];
   bool _loading = true;
 
@@ -23,145 +29,147 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _reload() async {
     setState(() => _loading = true);
     _items = await _svc.loadAll();
-    _items.sort((a, b) => a.name.compareTo(b.name));
+    _items.sort((a, b) => a.code.compareTo(b.code));
     setState(() => _loading = false);
   }
 
-  Future<void> _add() async {
-    final res = await showDialog<Employee>(
-      context: context,
-      builder: (_) => const _EmployeeDialog(),
+  Future<void> _addOrUpdate() async {
+    final e = Employee(
+      code: _codeCtrl.text.trim(),
+      name: _nameCtrl.text.trim(),
+      dept: _deptCtrl.text.trim(),
+      isAdmin: _isAdmin,
+      isActive: _isActive,
     );
-    if (res == null) return;
-    await _svc.add(res);
+    if (e.code.isEmpty) return;
+    await _svc.add(e);
+    _clearInputs();
     await _reload();
   }
 
   Future<void> _remove(Employee e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Xóa nhân viên?'),
-        content: Text('Bạn chắc chắn muốn xóa "${e.name}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xóa')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await _svc.remove(e.id);
-      await _reload();
-    }
+    await _svc.remove(e.code);
+    await _reload();
+  }
+
+  void _fill(Employee e) {
+    _codeCtrl.text = e.code;
+    _nameCtrl.text = e.name;
+    _deptCtrl.text = e.dept;
+    _isAdmin = e.isAdmin;
+    _isActive = e.isActive;
+    setState(() {});
+  }
+
+  void _clearInputs() {
+    _codeCtrl.clear();
+    _nameCtrl.clear();
+    _deptCtrl.clear();
+    _isAdmin = false;
+    _isActive = true;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản trị nhân viên')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _add,
-        child: const Icon(Icons.person_add),
-      ),
+      appBar: AppBar(title: const Text('Quản trị nhân sự')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _reload,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: _items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (_, i) {
-                  final e = _items[i];
-                  return ListTile(
-                    leading: CircleAvatar(child: Text(e.name.isNotEmpty ? e.name[0] : '?')),
-                    title: Text(e.name),
-                    subtitle: Text('Mã: ${e.code} · Phòng: ${e.dept}${e.isAdmin ? " · Admin" : ""}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _remove(e),
-                    ),
-                  );
-                },
-              ),
+          : Column(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _codeCtrl,
+                              decoration:
+                                  const InputDecoration(labelText: 'Mã'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _nameCtrl,
+                              decoration:
+                                  const InputDecoration(labelText: 'Tên'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _deptCtrl,
+                              decoration:
+                                  const InputDecoration(labelText: 'Phòng'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _isAdmin,
+                                  onChanged: (v) =>
+                                      setState(() => _isAdmin = v ?? false),
+                                ),
+                                const Text('Admin'),
+                                const SizedBox(width: 12),
+                                Checkbox(
+                                  value: _isActive,
+                                  onChanged: (v) =>
+                                      setState(() => _isActive = v ?? true),
+                                ),
+                                const Text('Active'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: _addOrUpdate,
+                            child: const Text('Lưu'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: _clearInputs,
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _items.length,
+                    itemBuilder: (_, i) {
+                      final e = _items[i];
+                      return ListTile(
+                        title: Text('${e.code} - ${e.name}'),
+                        subtitle: Text(
+                            'Phòng: ${e.dept} · ${e.isAdmin ? "Admin" : "User"} · ${e.isActive ? "Active" : "Locked"}'),
+                        onTap: () => _fill(e),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _remove(e),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-    );
-  }
-}
-
-class _EmployeeDialog extends StatefulWidget {
-  const _EmployeeDialog();
-
-  @override
-  State<_EmployeeDialog> createState() => _EmployeeDialogState();
-}
-
-class _EmployeeDialogState extends State<_EmployeeDialog> {
-  final _name = TextEditingController();
-  final _code = TextEditingController();
-  final _dept = TextEditingController();
-  bool _isAdmin = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _code.dispose();
-    _dept.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Thêm nhân viên'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Họ tên'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _code,
-            decoration: const InputDecoration(labelText: 'Mã đăng nhập'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _dept,
-            decoration: const InputDecoration(labelText: 'Phòng ban'),
-          ),
-          const SizedBox(height: 8),
-          CheckboxListTile(
-            value: _isAdmin,
-            onChanged: (v) => setState(() => _isAdmin = v ?? false),
-            title: const Text('Quyền quản trị (Admin)'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-        FilledButton(
-          onPressed: () {
-            if (_name.text.trim().isEmpty || _code.text.trim().isEmpty) return;
-            final id = 'emp-${Random().nextInt(900000) + 100000}';
-            Navigator.pop(
-              context,
-              Employee(
-                id: id,
-                name: _name.text.trim(),
-                code: _code.text.trim(),
-                dept: _dept.text.trim(),
-                isAdmin: _isAdmin,
-                isActive: true,
-              ),
-            );
-          },
-          child: const Text('Lưu'),
-        ),
-      ],
     );
   }
 }
