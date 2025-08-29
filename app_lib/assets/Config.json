@@ -1,12 +1,16 @@
 {
-  "content": {
-    "public": "",
-    "internal": ""
+  "app_name": "SNP Chatbot",
+  "company": "SNP",
+  "api": {
+    "base_url": "https://example.com/api",
+    "timeout_seconds": 30
+  },
+  "data_sources": {
+    "faq_public": "assets/faq_public.json",
+    "faq_internal": "assets/faq_internal.json"
   },
   "features": {
-    "chat": true,
-    "faq": true,
-    "lookup": true,
-    "notify": true
+    "chat_public": true,
+    "chat_internal": true
   }
 }
