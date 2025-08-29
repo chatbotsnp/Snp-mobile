@@ -1,26 +1,35 @@
 name: snp_chatbot
-description: SNP Chatbot demo
+description: Ứng dụng SNP Chatbot (Chat/FAQ/Tasks/Admin) với dữ liệu online + cache offline
 publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  http: ^1.2.0
+  cupertino_icons: ^1.0.8
+
+  # Online fetch + lưu cache cục bộ
+  http: ^1.2.2
+  path_provider: ^2.1.4
+
+  # (Giữ để tương thích các file bạn đã có)
+  # Nếu bạn có thêm package khác, kê bổ sung bên dưới.
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^3.0.2
 
 flutter:
   uses-material-design: true
 
+  # Khai báo toàn bộ assets dùng trong app
   assets:
     - assets/config.json
     - assets/faq_public.json
     - assets/faq_internal.json
+    - assets/employees.json
+    - assets/tasks.json
