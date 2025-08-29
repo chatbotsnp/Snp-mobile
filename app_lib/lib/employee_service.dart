@@ -1,106 +1,111 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+
+import 'package:flutter/services.dart' show rootBundle;
+import 'models/user_role.dart';
 
 class Employee {
-  final String id;       // uuid ngắn
+  final String id;
   final String name;
-  final String code;     // mã đăng nhập
-  final String dept;
+  final String phone;
   final bool isAdmin;
   final bool isActive;
 
-  Employee({
+  const Employee({
     required this.id,
     required this.name,
-    required this.code,
-    required this.dept,
-    this.isAdmin = false,
-    this.isActive = true,
+    required this.phone,
+    required this.isAdmin,
+    required this.isActive,
   });
 
-  factory Employee.fromJson(Map<String, dynamic> j) => Employee(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        code: j['code'] as String,
-        dept: j['dept'] as String? ?? '',
-        isAdmin: j['isAdmin'] as bool? => true ?? false,
-        isActive: j['isActive'] as bool? => true ?? true,
-      );
+  factory Employee.fromJson(Map<String, dynamic> j) {
+    return Employee(
+      id: (j['id'] ?? '').toString(),
+      name: (j['name'] ?? '').toString(),
+      phone: (j['phone'] ?? '').toString(),
+      // quan trọng: dùng ?? thay vì =>
+      isAdmin: (j['isAdmin'] as bool?) ?? false,
+      isActive: (j['isActive'] as bool?) ?? true,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'code': code,
-        'dept': dept,
+        'phone': phone,
         'isAdmin': isAdmin,
         'isActive': isActive,
       };
 }
 
 class EmployeeService {
-  static final EmployeeService _inst = EmployeeService._();
   EmployeeService._();
-  factory EmployeeService() => _inst;
+  static final EmployeeService _instance = EmployeeService._();
+  factory EmployeeService() => _instance;
 
-  static const _fileName = 'employees.json';
+  final List<Employee> _cache = [];
 
-  Future<File> _dataFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/$_fileName');
-  }
+  /// Nạp dữ liệu mẫu từ assets (nếu bạn có file),
+  /// nếu không có sẽ dùng seed mặc định.
+  Future<void> load({String? assetPath}) async {
+    if (_cache.isNotEmpty) return;
 
-  /// Nạp danh sách nhân viên. Nếu chưa có file thì tạo file mẫu.
-  Future<List<Employee>> loadAll() async {
-    final f = await _dataFile();
-    if (!await f.exists()) {
-      await f.writeAsString(jsonEncode([
-        {
-          'id': 'emp-001',
-          'name': 'Quản trị',
-          'code': 'admin',   // đăng nhập admin mặc định
-          'dept': 'IT',
-          'isAdmin': true,
-          'isActive': true
-        },
-        {
-          'id': 'emp-002',
-          'name': 'Nhân viên demo',
-          'code': '1234',
-          'dept': 'CSKH',
-          'isAdmin': false,
-          'isActive': true
-        }
-      ]));
+    if (assetPath != null) {
+      try {
+        final raw = await rootBundle.loadString(assetPath);
+        final list = (jsonDecode(raw) as List)
+            .map((e) => Employee.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _cache
+          ..clear()
+          ..addAll(list);
+        return;
+      } catch (_) {
+        // fallthrough dùng seed mặc định
+      }
     }
-    final text = await f.readAsString();
-    final list = (jsonDecode(text) as List).cast<Map<String, dynamic>>();
-    return list.map(Employee.fromJson).toList();
+
+    // Seed mặc định (để demo đăng nhập/ phân quyền)
+    _cache
+      ..clear()
+      ..addAll([
+        const Employee(
+          id: '1',
+          name: 'Admin',
+          phone: '0900000001',
+          isAdmin: true,
+          isActive: true,
+        ),
+        const Employee(
+          id: '2',
+          name: 'Nhân viên A',
+          phone: '0900000002',
+          isAdmin: false,
+          isActive: true,
+        ),
+        const Employee(
+          id: '3',
+          name: 'Nhân viên B (khóa)',
+          phone: '0900000003',
+          isAdmin: false,
+          isActive: false,
+        ),
+      ]);
   }
 
-  Future<void> saveAll(List<Employee> items) async {
-    final f = await _dataFile();
-    await f.writeAsString(jsonEncode(items.map((e) => e.toJson()).toList()));
-  }
+  List<Employee> all() => List.unmodifiable(_cache);
 
-  Future<void> add(Employee e) async {
-    final all = await loadAll();
-    all.add(e);
-    await saveAll(all);
-  }
-
-  Future<void> remove(String id) async {
-    final all = await loadAll();
-    all.removeWhere((e) => e.id == id);
-    await saveAll(all);
-  }
-
-  Future<Employee?> findByCode(String code) async {
-    final all = await loadAll();
+  Employee? findByPhone(String phone) {
     try {
-      return all.firstWhere((e) => e.code.trim() == code.trim());
+      return _cache.firstWhere((e) => e.phone == phone);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Trả về role dựa trên nhân sự
+  UserRole roleOf(Employee e) {
+    if (e.isAdmin) return UserRole.admin;
+    return UserRole.internal;
   }
 }
