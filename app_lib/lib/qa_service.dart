@@ -1,218 +1,192 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-/// Vai trò người dùng
-enum UserRole { public, internal }
-
-/// Một mục Hỏi–Đáp
-class FAQItem {
+/// Cấu trúc 1 QA
+class QAPair {
   final String question;
   final String answer;
-  FAQItem(this.question, this.answer);
 
-  factory FAQItem.fromJson(dynamic j) {
-    if (j is Map<String, dynamic>) {
-      final q = (j['q'] ?? j['question'] ?? '').toString();
-      final a = (j['a'] ?? j['answer'] ?? '').toString();
-      return FAQItem(q, a);
-    }
-    return FAQItem('', '');
-  }
+  QAPair({required this.question, required this.answer});
+
+  factory QAPair.fromJson(Map<String, dynamic> j) => QAPair(
+        question: (j['question'] ?? j['q'] ?? '').toString(),
+        answer: (j['answer'] ?? j['a'] ?? '').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {'question': question, 'answer': answer};
 }
 
-class _Config {
-  final bool remote;
-  final String publicUrl;
-  final String internalUrl;
-  final int timeoutSeconds;
-
-  _Config({
-    required this.remote,
-    required this.publicUrl,
-    required this.internalUrl,
-    required this.timeoutSeconds,
-  });
-
-  static Future<_Config> load() async {
-    final raw = await rootBundle.loadString('assets/config.json');
-    final j = json.decode(raw) as Map<String, dynamic>;
-    return _Config(
-      remote: (j['remote'] ?? false) == true,
-      publicUrl: (j['public_url'] ?? '').toString(),
-      internalUrl: (j['internal_url'] ?? '').toString(),
-      timeoutSeconds: int.tryParse('${j['timeout_seconds'] ?? 10}') ?? 10,
-    );
-  }
-}
-
-/// Service nạp dữ liệu & trả lời
+/// Dịch vụ Q&A dùng offline cache + có thể sync online.
+/// LƯU Ý: để không xung đột với enum UserRole ở file khác,
+/// mình KHÔNG import/định nghĩa UserRole ở đây.
+/// Thay vào đó nhận tham số `role` kiểu dynamic, tự suy ra có phải internal không.
 class QAService {
-  final UserRole role;
-  List<FAQItem> _items = [];
-  bool _loaded = false;
+  final bool isInternal;
 
-  QAService({required this.role});
+  /// `role` có thể là enum UserRole.public/internal, hoặc chuỗi 'public'/'internal'
+  QAService({dynamic role}) : isInternal = _toInternal(role);
 
-  /// Nạp dữ liệu (ưu tiên cache → online → offline assets)
-  Future<void> load({bool forceOnline = false}) async {
-    final cfg = await _Config.load();
-
-    // 0) Cache trước nếu không ép online
-    if (!forceOnline) {
-      final cached = await _readCache();
-      if (cached != null) {
-        _items = _parseItems(cached);
-        _loaded = true;
-        // làm mới online âm thầm
-        _refreshOnlineSilently(cfg);
-        return;
-      }
-    }
-
-    // 1) Online-first nếu bật remote hoặc forceOnline
-    if (cfg.remote || forceOnline) {
-      final url = _urlForRole(cfg);
-      if (url.isNotEmpty) {
-        try {
-          final res = await http.get(Uri.parse(url))
-              .timeout(Duration(seconds: cfg.timeoutSeconds));
-          if (res.statusCode == 200 && res.body.isNotEmpty) {
-            _items = _parseItems(res.body);
-            _loaded = true;
-            await _writeCache(res.body);
-            return;
-          }
-        } catch (_) { /* fallback */ }
-      }
-    }
-
-    // 2) Fallback offline
-    final path = role == UserRole.public
-        ? 'assets/faq_public.json'
-        : 'assets/faq_internal.json';
-    final raw = await rootBundle.loadString(path);
-    _items = _parseItems(raw);
-    _loaded = true;
-    await _writeCache(raw);
+  static bool _toInternal(dynamic role) {
+    if (role == null) return false;
+    final s = role.toString().toLowerCase();
+    return s.contains('internal');
   }
 
-  /// Ép tải ONLINE ngay (dùng cho nút "Đồng bộ")
-  Future<void> refreshOnline() async {
-    await load(forceOnline: true);
-  }
+  // Tên file bundle (assets) & cache theo role
+  String get _bundleAsset =>
+      isInternal ? 'assets/faq_internal.json' : 'assets/faq_public.json';
 
-  /// Trả về bản sao danh sách FAQ hiện có (sau khi load)
-  Future<List<FAQItem>> getAll() async {
-    if (!_loaded) await load();
-    return List<FAQItem>.from(_items);
-  }
+  String get _cacheFileName =>
+      isInternal ? 'qa_internal_cache.json' : 'qa_public_cache.json';
 
-  /// Tìm câu trả lời tốt nhất theo cơ chế fuzzy đơn giản
-  Future<String> answer(String question) async {
-    if (!_loaded) await load();
-    final q = _normalize(question);
-    if (q.isEmpty) return 'Bạn vui lòng nhập câu hỏi nhé.';
+  // Bộ nhớ tạm
+  List<QAPair> _items = [];
 
-    double bestScore = -1;
-    FAQItem? best;
-    for (final it in _items) {
-      final s = _score(q, it.question, it.answer);
-      if (s > bestScore) {
-        bestScore = s;
-        best = it;
-      }
-    }
-
-    if (best == null || bestScore < 0.22) {
-      return 'Xin lỗi, mình chưa có thông tin phù hợp. '
-          'Bạn thử diễn đạt khác giúp mình nhé.';
-    }
-    return best.answer;
-  }
-
-  // ====== Private helpers ======
-  String _urlForRole(_Config cfg) =>
-      role == UserRole.public ? cfg.publicUrl : cfg.internalUrl;
-
-  List<FAQItem> _parseItems(String raw) {
-    final data = json.decode(raw);
-    List<dynamic> list;
-    if (data is List) {
-      list = data;
-    } else if (data is Map<String, dynamic>) {
-      list = (data['faqs'] ??
-              data['data'] ??
-              data['items'] ??
-              data.values.firstWhere((v) => v is List, orElse: () => []))
-          as List<dynamic>;
-    } else {
-      list = [];
-    }
-    return list
-        .map((e) => FAQItem.fromJson(e))
-        .where((it) => it.question.isNotEmpty && it.answer.isNotEmpty)
-        .toList();
-  }
-
-  String _normalize(String s) => s
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\p{L}\p{N}\s]+', unicode: true), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
-  Set<String> _tokens(String s) =>
-      _normalize(s).split(' ').where((t) => t.isNotEmpty).toSet();
-
-  double _jaccard(Set<String> a, Set<String> b) {
-    if (a.isEmpty || b.isEmpty) return 0;
-    final inter = a.intersection(b).length;
-    final uni = a.union(b).length;
-    return inter / uni;
-  }
-
-  double _score(String q, String candQ, String candA) {
-    final qn = _normalize(candQ);
-    final an = _normalize(candA);
-    final containsQ = qn.contains(q) ? 1.0 : 0.0;
-    final jacQ = _jaccard(_tokens(q), _tokens(qn));
-    final jacA = _jaccard(_tokens(q), _tokens(an));
-    return containsQ * 0.6 + jacQ * 0.35 + jacA * 0.05;
-  }
-
+  /// Đường dẫn file cache trong thư mục Documents của app
   Future<File> _cacheFile() async {
     final dir = await getApplicationDocumentsDirectory();
-    final name = role == UserRole.public ? 'faq_public.json' : 'faq_internal.json';
-    return File('${dir.path}/$name');
+    return File('${dir.path}/$_cacheFileName');
+    // ví dụ: /data/user/0/<appId>/files/qa_public_cache.json
   }
 
-  Future<void> _writeCache(String content) async {
+  /// Parse từ JSON string thành danh sách QAPair an toàn
+  List<QAPair> _parseList(String text) {
     try {
-      final f = await _cacheFile();
-      await f.writeAsString(content, flush: true);
-    } catch (_) {}
-  }
-
-  Future<String?> _readCache() async {
-    try {
-      final f = await _cacheFile();
-      if (await f.exists()) return await f.readAsString();
-    } catch (_) {}
-    return null;
-  }
-
-  void _refreshOnlineSilently(_Config cfg) async {
-    if (!cfg.remote) return;
-    final url = _urlForRole(cfg);
-    if (url.isEmpty) return;
-    try {
-      final res = await http.get(Uri.parse(url))
-          .timeout(Duration(seconds: cfg.timeoutSeconds));
-      if (res.statusCode == 200 && res.body.isNotEmpty) {
-        await _writeCache(res.body);
+      final raw = jsonDecode(text);
+      if (raw is List) {
+        return raw
+            .map((e) => QAPair.fromJson((e as Map).cast<String, dynamic>()))
+            .toList();
       }
     } catch (_) {}
+    return <QAPair>[];
   }
+
+  /// Nạp dữ liệu:
+  /// - Nếu đã có cache => dùng cache;
+  /// - Nếu CHƯA có cache => copy từ bundled assets (faq_public.json / faq_internal.json) rồi lưu thành cache.
+  Future<void> load() async {
+    final f = await _cacheFile();
+
+    if (!await f.exists()) {
+      // Chưa có cache → đọc assets & ghi cache
+      final bundled = await rootBundle.loadString(_bundleAsset);
+      final list = _parseList(bundled);
+      _items = list;
+      await f.writeAsString(jsonEncode(list.map((e) => e.toJson()).toList()));
+      return;
+    }
+
+    // Có cache → đọc thẳng cache
+    final text = await f.readAsString();
+    _items = _parseList(text);
+  }
+
+  /// Lưu lại _items vào cache
+  Future<void> _saveCache() async {
+    final f = await _cacheFile();
+    await f.writeAsString(jsonEncode(_items.map((e) => e.toJson()).toList()));
+  }
+
+  /// Đồng bộ online:
+  /// - Nếu bạn muốn sync theo từng role: truyền đúng URL json public/internal tương ứng.
+  /// - Nếu chỉ có 1 URL cho role hiện tại → truyền `urlForThisRole`.
+  ///
+  /// JSON online phải là mảng các item có {question, answer} (hoặc {q, a}).
+  Future<bool> syncFromRemote({String? urlForThisRole}) async {
+    if (urlForThisRole == null || urlForThisRole.trim().isEmpty) return false;
+
+    try {
+      final uri = Uri.parse(urlForThisRole);
+      final http = HttpClient();
+      final req = await http.getUrl(uri);
+      final res = await req.close();
+      if (res.statusCode == 200) {
+        final text = await res.transform(utf8.decoder).join();
+        final list = _parseList(text);
+        if (list.isNotEmpty) {
+          _items = list;
+          await _saveCache();
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Trả lời câu hỏi `text` dựa trên dữ liệu _items.
+  /// Thuật toán đơn giản:
+  ///  - Ưu tiên khớp chứa/bao hàm (contains) không phân biệt hoa thường.
+  ///  - Nếu không có, dùng điểm tương đồng Jaccard trên tập từ.
+  Future<String> answer(String text) async {
+    if (_items.isEmpty) {
+      await load();
+    }
+    if (_items.isEmpty) {
+      return 'Hiện chưa có dữ liệu hỏi đáp. Vui lòng đồng bộ hoặc thêm nội dung.';
+    }
+
+    final q = _norm(text);
+
+    // 1) Ưu tiên match contains
+    for (final item in _items) {
+      final cand = _norm(item.question);
+      if (cand.isNotEmpty && (q.contains(cand) || cand.contains(q))) {
+        return item.answer;
+      }
+    }
+
+    // 2) Tính điểm giống nhau → chọn lớn nhất
+    double bestScore = 0;
+    String? bestAnswer;
+
+    for (final item in _items) {
+      final s = _jaccard(q, _norm(item.question));
+      if (s > bestScore) {
+        bestScore = s;
+        bestAnswer = item.answer;
+      }
+    }
+
+    // Ngưỡng gợi ý có thể chỉnh (0.15 ~ 0.35)
+    if (bestScore >= 0.2 && bestAnswer != null) return bestAnswer!;
+
+    return 'Xin lỗi, mình chưa có câu trả lời phù hợp. Bạn có thể đặt câu hỏi cụ thể hơn hoặc vào mục Hướng dẫn.';
+  }
+
+  /// Chuẩn hoá chuỗi
+  String _norm(String s) => s.toLowerCase().trim();
+
+  /// Jaccard similarity theo tập từ đơn giản
+  double _jaccard(String a, String b) {
+    final sa = a.split(RegExp(r'\s+')).toSet()..removeWhere((e) => e.isEmpty);
+    final sb = b.split(RegExp(r'\s+')).toSet()..removeWhere((e) => e.isEmpty);
+    if (sa.isEmpty || sb.isEmpty) return 0;
+    final inter = sa.intersection(sb).length;
+    final union = sa.union(sb).length;
+    return inter / union;
+  }
+
+  /// Thêm/sửa Q&A local (tuỳ chọn dùng cho Admin sau này)
+  Future<void> upsert(QAPair qa) async {
+    final idx = _items.indexWhere(
+        (e) => _norm(e.question) == _norm(qa.question));
+    if (idx >= 0) {
+      _items[idx] = qa;
+    } else {
+      _items.add(qa);
+    }
+    await _saveCache();
+  }
+
+  Future<void> removeByQuestion(String question) async {
+    _items.removeWhere((e) => _norm(e.question) == _norm(question));
+    await _saveCache();
+  }
+
+  List<QAPair> get all => List.unmodifiable(_items);
 }
