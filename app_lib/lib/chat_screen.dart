@@ -14,9 +14,17 @@ class _ChatScreenState extends State<ChatScreen> {
   late final QAService _qa = QAService(role: widget.role);
   final List<_Msg> _messages = [];
   bool _sending = false;
+  bool _syncing = false;
 
   String get _title =>
       widget.role == UserRole.public ? 'Chatbot – Khách hàng' : 'Chatbot – Nhân viên';
+
+  @override
+  void initState() {
+    super.initState();
+    // Nạp dữ liệu: ưu tiên cache/online, fallback offline (đã cài trong QAService)
+    _qa.load();
+  }
 
   @override
   void dispose() {
@@ -36,8 +44,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final answer = await _qa.answer(text);
+      if (!mounted) return;
       setState(() => _messages.add(_Msg(text: answer, fromUser: false)));
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _messages.add(_Msg(
             text: 'Có lỗi khi lấy câu trả lời. Bạn thử lại nhé.',
             fromUser: false,
@@ -47,10 +57,53 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _syncNow() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đang đồng bộ dữ liệu...')),
+    );
+
+    try {
+      // Ép tải ONLINE + ghi cache (QAService đã xử lý)
+      await _qa.load(forceOnline: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã đồng bộ xong!')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đồng bộ thất bại. Vui lòng thử lại.')),
+      );
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        actions: [
+          IconButton(
+            onPressed: _syncing ? null : _syncNow,
+            tooltip: 'Đồng bộ nội dung',
+            icon: _syncing
+                ? const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Icon(Icons.sync),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
