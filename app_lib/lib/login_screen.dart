@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'chat_screen.dart';         // đã có sẵn trong dự án của bạn
 import 'admin_screen.dart';        // file ở mục (3)
 import 'employee_service.dart';
+import 'models/user_role.dart'; // thêm dòng này
 
 // Nếu enum UserRole nằm trong file khác (vd: user_role.dart) thì đổi import tương ứng.
 // Ở bản trước ChatScreen nhận tham số `UserRole role`.
