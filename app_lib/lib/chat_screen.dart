@@ -1,8 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
 import 'qa_service.dart';
 
+/// Màn hình chat.
+/// Nhận vào tham số [role] (có thể là enum UserRole.public/internal, hoặc chuỗi).
 class ChatScreen extends StatefulWidget {
-  final UserRole role;
+  final dynamic role;
+
   const ChatScreen({super.key, required this.role});
 
   @override
@@ -10,167 +17,183 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _ctrl = TextEditingController();
   late final QAService _qa = QAService(role: widget.role);
-  final List<_Msg> _messages = [];
-  bool _sending = false;
+
+  final TextEditingController _text = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+
+  // messages: mỗi item = {from: 'user'|'bot', text: '...'}
+  final List<Map<String, String>> _messages = [];
+
+  bool _loading = true;
   bool _syncing = false;
 
-  String get _title =>
-      widget.role == UserRole.public ? 'Chatbot – Khách hàng' : 'Chatbot – Nhân viên';
+  bool get _isInternal => QAService(role: widget.role).isInternal;
 
   @override
   void initState() {
     super.initState();
-    // Nạp dữ liệu: ưu tiên cache/online, fallback offline (đã cài trong QAService)
-    _qa.load();
+    _init();
   }
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  Future<void> _init() async {
+    await _qa.load();
+    setState(() => _loading = false);
+  }
+
+  void _addMsg(String from, String text) {
+    _messages.add({'from': from, 'text': text});
+    setState(() {});
+    // scroll xuống cuối
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent + 80,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _send() async {
-    final text = _ctrl.text.trim();
-    if (text.isEmpty || _sending) return;
+    final t = _text.text.trim();
+    if (t.isEmpty) return;
+    _text.clear();
+    _addMsg('user', t);
 
-    setState(() {
-      _messages.add(_Msg(text: text, fromUser: true));
-      _sending = true;
-      _ctrl.clear();
-    });
-
-    try {
-      final answer = await _qa.answer(text);
-      if (!mounted) return;
-      setState(() => _messages.add(_Msg(text: answer, fromUser: false)));
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _messages.add(_Msg(
-            text: 'Có lỗi khi lấy câu trả lời. Bạn thử lại nhé.',
-            fromUser: false,
-          )));
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+    final reply = await _qa.answer(t);
+    _addMsg('bot', reply);
   }
 
-  Future<void> _syncNow() async {
-    if (_syncing) return;
+  /// Đọc assets/config.json và sync theo vai trò hiện tại
+  Future<void> _syncFromConfig() async {
     setState(() => _syncing = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đang đồng bộ dữ liệu...')),
-    );
-
     try {
-      // Ép tải ONLINE + ghi cache (QAService đã xử lý)
-      await _qa.load(forceOnline: true);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã đồng bộ xong!')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đồng bộ thất bại. Vui lòng thử lại.')),
-      );
+      final raw = await rootBundle.loadString('assets/config.json');
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+
+      final url = _isInternal
+          ? (j['internal_faq_url'] ?? j['faq_internal_url'] ?? '').toString()
+          : (j['public_faq_url'] ?? j['faq_public_url'] ?? '').toString();
+
+      if (url.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không tìm thấy URL trong assets/config.json'),
+            ),
+          );
+        }
+      } else {
+        final ok = await _qa.syncFromRemote(urlForThisRole: url);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ok
+                  ? 'Đồng bộ thành công! Dữ liệu đã được lưu offline.'
+                  : 'Đồng bộ thất bại. Kiểm tra lại link raw JSON.'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi đọc config: $e')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _syncing = false);
+      setState(() => _syncing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final title = _isInternal ? 'Chat nội bộ' : 'Chat khách hàng';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        title: Text(title),
         actions: [
           IconButton(
-            onPressed: _syncing ? null : _syncNow,
-            tooltip: 'Đồng bộ nội dung',
+            tooltip: 'Đồng bộ dữ liệu',
+            onPressed: _syncing ? null : _syncFromConfig,
             icon: _syncing
-                ? const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
+                ? const SizedBox(
+                    width: 20, height: 20, child: CircularProgressIndicator())
                 : const Icon(Icons.sync),
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemBuilder: (_, i) {
-                  final m = _messages[i];
-                  final align = m.fromUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-                  final bg = m.fromUser ? Colors.indigo.shade50 : Colors.grey.shade200;
-                  return Column(
-                    crossAxisAlignment: align,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(12),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scroll,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: _messages.length,
+                    itemBuilder: (ctx, i) {
+                      final m = _messages[i];
+                      final isUser = m['from'] == 'user';
+                      return Align(
+                        alignment:
+                            isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          constraints: BoxConstraints(
+                            maxWidth:
+                                MediaQuery.of(context).size.width * 0.78,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isUser
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Theme.of(context).colorScheme.surfaceVariant,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(m['text'] ?? ''),
                         ),
-                        child: Text(m.text),
-                      ),
-                    ],
-                  );
-                },
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemCount: _messages.length,
-              ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                        hintText: 'Nhập câu hỏi...',
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _text,
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: const InputDecoration(
+                              hintText: 'Nhập câu hỏi...',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: _send,
+                          child: const Icon(Icons.send),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _sending ? null : _send,
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
     );
   }
-}
-
-class _Msg {
-  final String text;
-  final bool fromUser;
-  _Msg({required this.text, required this.fromUser});
 }
