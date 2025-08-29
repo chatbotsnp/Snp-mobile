@@ -2,5 +2,7 @@
   "remote": true,
   "public_url": "https://raw.githubusercontent.com/chatbotsnp/snp_chatbot/main/app_lib/assets/faq_public.json",
   "internal_url": "https://raw.githubusercontent.com/chatbotsnp/snp_chatbot/main/app_lib/assets/faq_internal.json",
+  "employees_url": "https://raw.githubusercontent.com/chatbotsnp/snp_chatbot/main/app_lib/assets/employees.json",
+  "tasks_url": "https://raw.githubusercontent.com/chatbotsnp/snp_chatbot/main/app_lib/assets/tasks.json",
   "timeout_seconds": 10
 }
