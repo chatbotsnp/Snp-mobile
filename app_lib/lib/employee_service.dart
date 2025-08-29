@@ -1,111 +1,105 @@
 import 'dart:convert';
+import 'dart:io';
 
-import 'package:flutter/services.dart' show rootBundle;
-import 'models/user_role.dart';
+import 'package:path_provider/path_provider.dart';
 
+/// Model nhân sự
 class Employee {
-  final String id;
-  final String name;
-  final String phone;
-  final bool isAdmin;
-  final bool isActive;
+  final String code;     // mã NV (duy nhất)
+  final String name;     // tên
+  final String dept;     // phòng ban
+  final bool isAdmin;    // có quyền Admin trong app
+  final bool isActive;   // còn hiệu lực
 
   const Employee({
-    required this.id,
+    required this.code,
     required this.name,
-    required this.phone,
+    required this.dept,
     required this.isAdmin,
     required this.isActive,
   });
 
-  factory Employee.fromJson(Map<String, dynamic> j) {
-    return Employee(
-      id: (j['id'] ?? '').toString(),
-      name: (j['name'] ?? '').toString(),
-      phone: (j['phone'] ?? '').toString(),
-      // quan trọng: dùng ?? thay vì =>
-      isAdmin: (j['isAdmin'] as bool?) ?? false,
-      isActive: (j['isActive'] as bool?) ?? true,
-    );
-  }
+  factory Employee.fromJson(Map<String, dynamic> j) => Employee(
+        code: (j['code'] ?? '').toString(),
+        name: (j['name'] ?? '').toString(),
+        dept: (j['dept'] ?? '').toString(),
+        isAdmin: (j['isAdmin'] is bool)
+            ? j['isAdmin'] as bool
+            : j['isAdmin']?.toString().toLowerCase() == 'true',
+        isActive: (j['isActive'] is bool)
+            ? j['isActive'] as bool
+            : j['isActive']?.toString().toLowerCase() != 'false',
+      );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
+        'code': code,
         'name': name,
-        'phone': phone,
+        'dept': dept,
         'isAdmin': isAdmin,
         'isActive': isActive,
       };
 }
 
+/// Service quản lý danh sách nhân sự (lưu local JSON)
 class EmployeeService {
-  EmployeeService._();
-  static final EmployeeService _instance = EmployeeService._();
-  factory EmployeeService() => _instance;
+  static const _fileName = 'employees.json';
 
-  final List<Employee> _cache = [];
+  List<Employee> _cache = [];
 
-  /// Nạp dữ liệu mẫu từ assets (nếu bạn có file),
-  /// nếu không có sẽ dùng seed mặc định.
-  Future<void> load({String? assetPath}) async {
-    if (_cache.isNotEmpty) return;
-
-    if (assetPath != null) {
-      try {
-        final raw = await rootBundle.loadString(assetPath);
-        final list = (jsonDecode(raw) as List)
-            .map((e) => Employee.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _cache
-          ..clear()
-          ..addAll(list);
-        return;
-      } catch (_) {
-        // fallthrough dùng seed mặc định
-      }
+  Future<File> _getFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final f = File('${dir.path}/$_fileName');
+    if (!(await f.exists())) {
+      // seed rỗng lần đầu
+      await f.writeAsString(jsonEncode(<Map<String, dynamic>>[]));
     }
-
-    // Seed mặc định (để demo đăng nhập/ phân quyền)
-    _cache
-      ..clear()
-      ..addAll([
-        const Employee(
-          id: '1',
-          name: 'Admin',
-          phone: '0900000001',
-          isAdmin: true,
-          isActive: true,
-        ),
-        const Employee(
-          id: '2',
-          name: 'Nhân viên A',
-          phone: '0900000002',
-          isAdmin: false,
-          isActive: true,
-        ),
-        const Employee(
-          id: '3',
-          name: 'Nhân viên B (khóa)',
-          phone: '0900000003',
-          isAdmin: false,
-          isActive: false,
-        ),
-      ]);
+    return f;
   }
 
-  List<Employee> all() => List.unmodifiable(_cache);
+  /// Đọc hết danh sách
+  Future<List<Employee>> loadAll() async {
+    if (_cache.isNotEmpty) return _cache;
+    final f = await _getFile();
+    final raw = await f.readAsString();
+    final data = (jsonDecode(raw) as List)
+        .map((e) => Employee.fromJson(e as Map<String, dynamic>))
+        .toList();
+    _cache = data;
+    return _cache;
+  }
 
-  Employee? findByPhone(String phone) {
+  /// Lưu cache ra file
+  Future<void> _flush() async {
+    final f = await _getFile();
+    final data = _cache.map((e) => e.toJson()).toList();
+    await f.writeAsString(jsonEncode(data));
+  }
+
+  /// Tìm theo mã
+  Future<Employee?> findByCode(String code) async {
+    final all = await loadAll();
     try {
-      return _cache.firstWhere((e) => e.phone == phone);
+      return all.firstWhere(
+          (e) => e.code.trim().toLowerCase() == code.trim().toLowerCase());
     } catch (_) {
       return null;
     }
   }
 
-  /// Trả về role dựa trên nhân sự
-  UserRole roleOf(Employee e) {
-    if (e.isAdmin) return UserRole.admin;
-    return UserRole.internal;
+  /// Thêm/cập nhật (nếu trùng code thì ghi đè)
+  Future<void> add(Employee e) async {
+    await loadAll();
+    _cache.removeWhere(
+        (x) => x.code.trim().toLowerCase() == e.code.trim().toLowerCase());
+    _cache.add(e);
+    await _flush();
+  }
+
+  /// Xóa theo mã
+  Future<void> remove(String code) async {
+    await loadAll();
+    _cache.removeWhere(
+        (x) => x.code.trim().toLowerCase() == code.trim().toLowerCase());
+    await _flush();
   }
 }
