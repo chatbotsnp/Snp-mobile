@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'qa_service.dart';
-import 'user_role.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserRole role;
@@ -11,15 +10,16 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final QAService _qa;
   final _controller = TextEditingController();
-  final List<_Msg> _messages = []; // lịch sử chat đơn giản
+  final _messages = <_Msg>[];
+  late QAService _qa;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _qa = QAService(role: widget.role);
-    _qa.load(); // nạp dữ liệu
+    _qa.load(); // nạp sẵn
   }
 
   Future<void> _send() async {
@@ -27,17 +27,22 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
     setState(() {
       _messages.add(_Msg(text, true));
+      _controller.clear();
+      _loading = true;
     });
-    _controller.clear();
-    final reply = await _qa.answer(text);
+    final ans = await _qa.answer(text);
+    if (!mounted) return;
     setState(() {
-      _messages.add(_Msg(reply, false));
+      _messages.add(_Msg(ans, false));
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.role == UserRole.public ? 'Chatbot (Khách hàng)' : 'Chatbot (Nội bộ)';
+    final title = widget.role == UserRole.public
+        ? 'Hỏi đáp Khách hàng'
+        : 'Hỏi đáp Nhân viên';
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Column(
@@ -49,13 +54,17 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (_, i) {
                 final m = _messages[i];
                 return Align(
-                  alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      m.fromUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 320),
                     decoration: BoxDecoration(
-                      color: m.isMe ? Colors.blue.shade100 : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(8),
+                      color: m.fromUser
+                          ? Colors.blue.shade100
+                          : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(m.text),
                   ),
@@ -63,29 +72,30 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(),
+            ),
           SafeArea(
             child: Row(
               children: [
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: TextField(
                       controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
                       decoration: const InputDecoration(
-                        hintText: 'Nhập câu hỏi...',
+                        hintText: 'Nhập câu hỏi…',
                         border: OutlineInputBorder(),
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ElevatedButton(
-                    onPressed: _send,
-                    child: const Text('Gửi'),
-                  ),
-                ),
+                IconButton(onPressed: _send, icon: const Icon(Icons.send)),
               ],
             ),
           ),
@@ -97,6 +107,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _Msg {
   final String text;
-  final bool isMe;
-  _Msg(this.text, this.isMe);
+  final bool fromUser;
+  _Msg(this.text, this.fromUser);
 }
