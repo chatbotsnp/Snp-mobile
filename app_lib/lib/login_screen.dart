@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'chat_screen.dart';         // đã có sẵn trong dự án của bạn
-import 'admin_screen.dart';        // file ở mục (3)
+import 'chat_screen.dart';
 import 'employee_service.dart';
-import 'models/user_role.dart'; // thêm dòng này
 
-// Nếu enum UserRole nằm trong file khác (vd: user_role.dart) thì đổi import tương ứng.
-// Ở bản trước ChatScreen nhận tham số `UserRole role`.
+enum UserRole { public, internal }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,135 +13,84 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _codeCtrl = TextEditingController();
-  bool _isChecking = false;
+  final _svc = EmployeeService();
+  bool _checking = false;
+  String? _error;
 
-  @override
-  void dispose() {
-    _codeCtrl.dispose();
-    super.dispose();
-  }
+  Future<void> _go(UserRole role) async {
+    setState(() {
+      _error = null;
+    });
 
-  void _goPublic() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
+    if (role == UserRole.public) {
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ChatScreen(role: UserRole.public),
-      ),
-    );
-  }
+      ));
+      return;
+    }
 
-  Future<void> _goInternal() async {
-    // Hộp nhập mã
-    final code = await showDialog<String>(
-      context: context,
-      builder: (_) => _CodeDialog(controller: _codeCtrl),
-    );
+    // internal -> cần mã nhân viên (có thể rỗng, nhưng nếu đúng admin thì bật màn admin trong ChatScreen)
+    final code = _codeCtrl.text.trim();
+    setState(() => _checking = true);
+    final emp = code.isEmpty ? null : await _svc.findByCode(code);
+    setState(() => _checking = false);
 
-    if (code == null || code.trim().isEmpty) return;
-
-    setState(() => _isChecking = true);
-    final svc = EmployeeService();
-    final emp = await svc.findByCode(code.trim());
-    setState(() => _isChecking = false);
-
+    if (!mounted) return;
     if (emp == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mã nhân viên không hợp lệ!')),
-        );
-      }
-      return;
+      _error = code.isEmpty
+          ? null // cho phép vào nội bộ không mã (chỉ chat)
+          : 'Không tìm thấy nhân viên $code';
+    } else if (!emp.isActive) {
+      _error = 'Tài khoản đã bị khóa';
     }
 
-    if (emp.isAdmin) {
-      if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AdminScreen()),
-        );
-      }
-      return;
-    }
-
-    // Nhân viên thường -> vào Chat internal
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(role: UserRole.internal),
-        ),
-      );
-    }
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatScreen(
+        role: UserRole.internal,
+        employeeCode: code.isEmpty ? null : code,
+        isAdmin: emp?.isAdmin ?? false,
+        employeeName: emp?.name,
+        employeeDept: emp?.dept,
+      ),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Chọn vai trò')),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _RoleButton(
-              label: 'Khách hàng (Public)',
-              onTap: _goPublic,
+            TextField(
+              controller: _codeCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Mã nhân viên (tuỳ chọn khi vào nội bộ)',
+                hintText: 'VD: SNP001',
+              ),
             ),
-            const SizedBox(height: 16),
-            _RoleButton(
-              label: _isChecking ? 'Đang kiểm tra…' : 'Nhân viên (Internal)',
-              onTap: _isChecking ? null : _goInternal,
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _checking ? null : () => _go(UserRole.public),
+              child: const Text('Khách hàng (Public)'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _checking ? null : () => _go(UserRole.internal),
+              child: _checking
+                  ? const SizedBox(
+                      width: 18, height: 18, child: CircularProgressIndicator())
+                  : const Text('Nhân viên (Internal)'),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _RoleButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-
-  const _RoleButton({required this.label, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        minimumSize: const Size(260, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-class _CodeDialog extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _CodeDialog({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Nhập mã nhân viên'),
-      content: TextField(
-        controller: controller,
-        decoration: const InputDecoration(
-          hintText: 'VD: 1234 hoặc admin',
-          border: OutlineInputBorder(),
-        ),
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) => Navigator.of(context).pop(controller.text),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(controller.text),
-          child: const Text('Tiếp tục'),
-        ),
-      ],
     );
   }
 }
