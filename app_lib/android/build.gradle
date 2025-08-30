@@ -1,13 +1,18 @@
-// android/build.gradle
+// android/build.gradle  (Project-level)
+
 buildscript {
-    ext.kotlin_version = '1.9.22'
+    ext.kotlin_version = '1.8.22'
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath "com.android.tools.build:gradle:8.1.0"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // Android Gradle Plugin (AGP) 8.5.x – hợp với compileSdk 34
+        classpath "com.android.tools.build:gradle:8.5.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlin_version}"
+        // Không cần thêm gì cho Flutter ở project-level
     }
 }
 
@@ -18,14 +23,7 @@ allprojects {
     }
 }
 
-// (Tuỳ chọn) Giới hạn bộ nhớ gradle daemon khi build CI
-subprojects {
-    project.ext {
-        set("android.useAndroidX", true)
-        set("android.enableJetifier", true)
-    }
-}
-
+// Giữ task clean như mặc định
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
