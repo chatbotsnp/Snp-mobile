@@ -1,31 +1,59 @@
-buildscript {
-    ext {
-        kotlin_version = '1.9.25'
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "vn.snp.chatbot"
+    compileSdkVersion 34
+
+    defaultConfig {
+        applicationId "vn.snp.chatbot"
+        minSdkVersion 23
+        targetSdkVersion 34
+        versionCode 1
+        versionName "1.0"
+
+        // để tránh 64K methods khi minSdk < 24
+        multiDexEnabled true
     }
-    repositories {
-        google()
-        mavenCentral()
+
+    buildTypes {
+        release {
+            // thay bằng keystore thật khi phát hành
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+        }
+        debug {
+            debuggable true
+        }
     }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.4.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+
+    // BẮT BUỘC cho flutter_local_notifications (Java 8+ APIs)
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    // đường dẫn tới mã Flutter
+    flutter {
+        source '../..'
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
 
-rootProject.buildDir = "../build"
+    // Thư viện desugaring cho Java 8+ APIs
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
 
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(":app")
-}
-
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+    // Khuyến nghị khi minSdk < 24 (tránh 64K methods)
+    implementation "androidx.multidex:multidex:2.0.1"
 }
