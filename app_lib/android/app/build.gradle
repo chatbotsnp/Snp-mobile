@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace "com.snp.chatbot"
-    compileSdkVersion 34
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.snp.chatbot"
-        minSdkVersion 23
-        targetSdkVersion 34
+        minSdk 23
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
@@ -29,28 +29,36 @@ android {
         }
     }
 
-    // ✅ BẮT BUỘC cho flutter_local_notifications
+    // BẮT BUỘC cho flutter_local_notifications (fix CheckAarMetadata)
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    // Tuỳ chọn, để tránh xung đột tài nguyên
+    packagingOptions {
+        resources {
+            excludes += ["/META-INF/{AL2.0,LGPL2.1}"]
+        }
+    }
 }
 
+// Đường dẫn tới thư mục Flutter app (từ android/app lên 2 cấp tới gốc app_lib)
 flutter {
     source '../..'
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    // Kotlin stdlib (tuỳ chọn, giúp đồng bộ với jvmTarget 17)
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
 
-    // ✅ Thư viện desugaring (bắt buộc)
+    // BẮT BUỘC: thư viện desugaring cho Java 8+
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
 
-    // ✅ Multidex cho minSdk < 24
+    // Khuyến nghị khi minSdk < 24
     implementation "androidx.multidex:multidex:2.0.1"
 }
