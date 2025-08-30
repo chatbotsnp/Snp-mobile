@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "code": "SNP0001",
+    "name": "Nguyen Van A",
+    "dept": "Kinh doanh",
+    "isAdmin": true,
+    "isActive": true
+  },
+  {
+    "id": "2",
+    "code": "SNP0002",
+    "name": "Tran Thi B",
+    "dept": "Chăm sóc KH",
+    "isAdmin": false,
+    "isActive": true
+  },
+  {
+    "id": "3",
+    "code": "SNP0003",
+    "name": "Le Van C",
+    "dept": "Kế toán",
+    "isAdmin": false,
+    "isActive": true
+  },
+  {
+    "id": "4",
+    "code": "SNP0004",
+    "name": "Pham Thi D",
+    "dept": "Nhân sự",
+    "isAdmin": false,
+    "isActive": false
+  },
+  {
+    "id": "5",
+    "code": "SNP0005",
+    "name": "Vo Van E",
+    "dept": "IT",
+    "isAdmin": true,
+    "isActive": true
+  }
+]
