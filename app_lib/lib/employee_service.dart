@@ -1,15 +1,17 @@
+// lib/employee_service.dart
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Model nhân sự
 class Employee {
-  final String code;     // mã NV (duy nhất)
-  final String name;     // tên
-  final String dept;     // phòng ban
-  final bool isAdmin;    // có quyền Admin trong app
-  final bool isActive;   // còn hiệu lực
+  final String code;      // Mã nhân viên duy nhất (ví dụ: SNP001)
+  final String name;      // Tên
+  final String dept;      // Phòng ban
+  final bool isAdmin;     // Có quyền admin (quản trị)
+  final bool isActive;    // Đang hoạt động
 
   const Employee({
     required this.code,
@@ -19,17 +21,31 @@ class Employee {
     required this.isActive,
   });
 
-  factory Employee.fromJson(Map<String, dynamic> j) => Employee(
-        code: (j['code'] ?? '').toString(),
-        name: (j['name'] ?? '').toString(),
-        dept: (j['dept'] ?? '').toString(),
-        isAdmin: (j['isAdmin'] is bool)
-            ? j['isAdmin'] as bool
-            : j['isAdmin']?.toString().toLowerCase() == 'true',
-        isActive: (j['isActive'] is bool)
-            ? j['isActive'] as bool
-            : j['isActive']?.toString().toLowerCase() != 'false',
-      );
+  Employee copyWith({
+    String? code,
+    String? name,
+    String? dept,
+    bool? isAdmin,
+    bool? isActive,
+  }) {
+    return Employee(
+      code: code ?? this.code,
+      name: name ?? this.name,
+      dept: dept ?? this.dept,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+  factory Employee.fromJson(Map<String, dynamic> j) {
+    return Employee(
+      code: (j['code'] ?? '').toString(),
+      name: (j['name'] ?? '').toString(),
+      dept: (j['dept'] ?? '').toString(),
+      isAdmin: (j['isAdmin'] ?? false) == true,
+      isActive: (j['isActive'] ?? true) == true,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'code': code,
@@ -40,66 +56,75 @@ class Employee {
       };
 }
 
-/// Service quản lý danh sách nhân sự (lưu local JSON)
+/// Service quản lý danh sách nhân viên, lưu local JSON
 class EmployeeService {
   static const _fileName = 'employees.json';
 
-  List<Employee> _cache = [];
-
-  Future<File> _getFile() async {
+  Future<File> _ensureFile() async {
     final dir = await getApplicationDocumentsDirectory();
-    final f = File('${dir.path}/$_fileName');
-    if (!(await f.exists())) {
-      // seed rỗng lần đầu
-      await f.writeAsString(jsonEncode(<Map<String, dynamic>>[]));
+    final file = File('${dir.path}/$_fileName');
+    if (!await file.exists()) {
+      await file.create(recursive: true);
+      // Tạo data mẫu lần đầu
+      final seed = [
+        Employee(
+          code: 'SNP001',
+          name: 'Nguyễn Văn A',
+          dept: 'Khai thác Cảng',
+          isAdmin: true,
+          isActive: true,
+        ).toJson(),
+        Employee(
+          code: 'SNP002',
+          name: 'Trần Thị B',
+          dept: 'Kinh doanh',
+          isAdmin: false,
+          isActive: true,
+        ).toJson(),
+      ];
+      await file.writeAsString(jsonEncode(seed));
     }
-    return f;
+    return file;
   }
 
-  /// Đọc hết danh sách
   Future<List<Employee>> loadAll() async {
-    if (_cache.isNotEmpty) return _cache;
-    final f = await _getFile();
+    final f = await _ensureFile();
     final raw = await f.readAsString();
-    final data = (jsonDecode(raw) as List)
-        .map((e) => Employee.fromJson(e as Map<String, dynamic>))
-        .toList();
-    _cache = data;
-    return _cache;
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map(Employee.fromJson).toList(growable: true);
   }
 
-  /// Lưu cache ra file
-  Future<void> _flush() async {
-    final f = await _getFile();
-    final data = _cache.map((e) => e.toJson()).toList();
-    await f.writeAsString(jsonEncode(data));
+  Future<void> _saveAll(List<Employee> items) async {
+    final f = await _ensureFile();
+    await f.writeAsString(jsonEncode(items.map((e) => e.toJson()).toList()));
   }
 
   /// Tìm theo mã
   Future<Employee?> findByCode(String code) async {
-    final all = await loadAll();
+    final items = await loadAll();
     try {
-      return all.firstWhere(
-          (e) => e.code.trim().toLowerCase() == code.trim().toLowerCase());
+      return items.firstWhere((e) => e.code.toUpperCase() == code.toUpperCase());
     } catch (_) {
       return null;
     }
   }
 
-  /// Thêm/cập nhật (nếu trùng code thì ghi đè)
+  /// Thêm mới hoặc cập nhật theo code (upsert)
   Future<void> add(Employee e) async {
-    await loadAll();
-    _cache.removeWhere(
-        (x) => x.code.trim().toLowerCase() == e.code.trim().toLowerCase());
-    _cache.add(e);
-    await _flush();
+    final items = await loadAll();
+    final idx = items.indexWhere((x) => x.code.toUpperCase() == e.code.toUpperCase());
+    if (idx >= 0) {
+      items[idx] = e;
+    } else {
+      items.add(e);
+    }
+    await _saveAll(items);
   }
 
   /// Xóa theo mã
   Future<void> remove(String code) async {
-    await loadAll();
-    _cache.removeWhere(
-        (x) => x.code.trim().toLowerCase() == code.trim().toLowerCase());
-    await _flush();
+    final items = await loadAll();
+    items.removeWhere((x) => x.code.toUpperCase() == code.toUpperCase());
+    await _saveAll(items);
   }
 }
