@@ -12,16 +12,14 @@ android {
         applicationId "com.snp.chatbot"
         minSdkVersion 23
         targetSdkVersion 34
-
         versionCode 1
         versionName "1.0"
-
         multiDexEnabled true
     }
 
     buildTypes {
         release {
-            // TODO: thay signingConfig khi có keystore thật
+            // TODO: thay keystore thật khi phát hành
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
@@ -31,7 +29,7 @@ android {
         }
     }
 
-    // BẮT BUỘC cho flutter_local_notifications
+    // BẮT BUỘC cho flutter_local_notifications (desugaring + Java 17)
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
@@ -47,11 +45,11 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.25"
 
-    // Bật desugaring
+    // Thư viện desugaring
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
 
-    // optional nhưng nên có cho minSdk < 24
+    // Khuyến nghị cho minSdk < 24
     implementation "androidx.multidex:multidex:2.0.1"
 }
