@@ -5,15 +5,12 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-
-plugins {
-    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version "8.3.2"
-    id "org.jetbrains.kotlin.android" version "1.9.24"
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
-
+rootProject.name = "snp_chatbot"
 include ":app"
-
-// Kết nối hạ tầng build của Flutter vào project Android
-def flutterProjectRoot = file("../../")
-includeBuild("${flutterProjectRoot}/.android/include_flutter.groovy")
