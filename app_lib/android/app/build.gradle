@@ -1,41 +1,40 @@
+// android/app/build.gradle
 plugins {
     id "com.android.application"
-    id "org.jetbrains.kotlin.android"
+    id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
-    namespace "com.snp.chatbot"
-    compileSdk 34
+    namespace "com.example.snp_chatbot"
+    compileSdkVersion 34
 
     defaultConfig {
-        applicationId "com.snp.chatbot"
-        minSdk 21
-        targetSdk 34
+        applicationId "com.example.snp_chatbot"
+        minSdkVersion 23
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
-
-        // Giúp số method vượt 64K (dự phòng)
         multiDexEnabled true
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary true
+        }
     }
 
     buildTypes {
         release {
-            // Tạm thời không minify để build CI ổn định
             minifyEnabled false
             shrinkResources false
             signingConfig signingConfigs.debug
         }
-        debug {
-            signingConfig signingConfigs.debug
-        }
     }
 
-    // BẮT BUỘC cho flutter_local_notifications: bật desugaring JDK
+    // ✅ Quan trọng để fix lỗi flutter_local_notifications
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -44,16 +43,13 @@ android {
 }
 
 flutter {
-    // đường dẫn mặc định tới module Flutter (thư mục chứa pubspec.yaml)
-    source = "../../"
+    source '../..'
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
-
-    // Thêm dòng này để bật thư viện desugaring JDK
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
-
-    // Dự phòng multidex (nếu cần)
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "androidx.multidex:multidex:2.0.1"
+
+    // ✅ Bổ sung cho flutter_local_notifications
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
 }
