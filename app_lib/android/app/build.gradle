@@ -29,12 +29,13 @@ android {
         }
     }
 
-    // BẮT BUỘC cho flutter_local_notifications (desugaring + Java 17)
+    // ✅ BẮT BUỘC cho flutter_local_notifications
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
@@ -45,11 +46,11 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.25"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
-    // Thư viện desugaring
+    // ✅ Thư viện desugaring (bắt buộc)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
 
-    // Khuyến nghị cho minSdk < 24
+    // ✅ Multidex cho minSdk < 24
     implementation "androidx.multidex:multidex:2.0.1"
 }
