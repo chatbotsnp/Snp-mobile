@@ -1,4 +1,4 @@
-package vn.snp.chatbot   // ⚠️ sửa cho đúng với package trong AndroidManifest + build.gradle
+package com.snp.chatbot
 
 import io.flutter.embedding.android.FlutterActivity
 
