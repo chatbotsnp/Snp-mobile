@@ -1,8 +1,5 @@
-// android/build.gradle (project-level)
 buildscript {
-    ext {
-        kotlin_version = '1.9.25'
-    }
+    ext { kotlin_version = '1.9.25' }
     repositories {
         google()
         mavenCentral()
