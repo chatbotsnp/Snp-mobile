@@ -1,64 +1,10 @@
-name: build
+name: android_release (disabled)
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - "app_lib/**"
-      - ".github/workflows/android_release.yml"
+  workflow_dispatch:  # chỉ chạy khi bấm tay
 
 jobs:
-  build-android:
+  noop:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 17 (Temurin)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Flutter (stable 3.35.2)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.35.2"
-          channel: "stable"
-          cache: true
-
-      - name: Flutter version
-        run: flutter --version
-
-      # Chạy trong module Flutter của bạn (app_lib)
-      - name: Get dependencies
-        working-directory: app_lib
-        run: flutter pub get
-
-      # Clean Gradle cache & project để chắc chắn áp dụng desugaring
-      - name: Clean Gradle caches
-        working-directory: app_lib/android
-        run: |
-          rm -rf ~/.gradle/caches
-          ./gradlew --version
-          ./gradlew clean
-
-      - name: Accept Android licenses
-        run: yes | flutter doctor --android-licenses
-
-      # Build APK release (tắt tree-shake icon cho nhanh và tránh miss icon)
-      - name: Build APK (release)
-        working-directory: app_lib
-        env:
-          JAVA_TOOL_OPTIONS: -Xmx4g
-        run: |
-          flutter build apk --release --no-tree-shake-icons
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snp-chatbot-apk
-          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+      - run: echo "This workflow is disabled. Use build-android.yml instead."
