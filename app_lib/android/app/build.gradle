@@ -14,35 +14,25 @@ android {
         targetSdkVersion 34
         versionCode 1
         versionName "1.0"
-
-        // để tránh 64K methods khi minSdk < 24
         multiDexEnabled true
     }
 
     buildTypes {
         release {
-            // thay bằng keystore thật khi phát hành
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
-        debug {
-            debuggable true
-        }
     }
 
-    // BẮT BUỘC cho flutter_local_notifications (Java 8+ APIs)
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 
-    // đường dẫn tới mã Flutter
     flutter {
         source '../..'
     }
@@ -50,10 +40,6 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
-
-    // Thư viện desugaring cho Java 8+ APIs
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
-
-    // Khuyến nghị khi minSdk < 24 (tránh 64K methods)
     implementation "androidx.multidex:multidex:2.0.1"
 }
