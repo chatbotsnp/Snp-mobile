@@ -1,60 +1,10 @@
-name: Build Android APK (SNP Chatbot)
+name: main (disabled)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # chỉ chạy khi bấm tay
 
 jobs:
-  build:
+  noop:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          # flutter-version: '3.22.2' # có thể bỏ dòng này nếu không cần cố định
-
-      - name: Flutter version
-        run: flutter --version
-
-      # Luôn đảm bảo có project con "mobile/"
-      - name: Create Flutter scaffold if missing
-        run: |
-          if [ ! -d "mobile" ]; then
-            flutter create mobile
-          fi
-
-      # Chép code/app_lib vào dự án con
-      - name: Copy app code + pubspec + assets into mobile
-        run: |
-          rm -rf mobile/lib
-          mkdir -p mobile/assets
-          cp -r app_lib/lib/. mobile/lib/
-          cp -r app_lib/assets/. mobile/assets/ || true
-          cp app_lib/pubspec.yaml mobile/pubspec.yaml
-          echo "✅ Copied app_lib into mobile/"
-
-      - name: Get dependencies
-        run: |
-          cd mobile
-          flutter pub get
-
-      - name: Build APK (release)
-        run: |
-          cd mobile
-          flutter build apk --release
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snp-chatbot-apk
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+      - run: echo "This workflow is disabled. Use build-android.yml instead."
