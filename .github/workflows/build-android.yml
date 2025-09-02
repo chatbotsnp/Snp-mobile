@@ -1,64 +1,39 @@
-name: Build Android (APK)
+name: Build Android
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - "app_lib/**"
-      - ".github/workflows/build-android.yml"
-  workflow_dispatch:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
-      # 1) Lấy mã nguồn
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2) Java 17 (bắt buộc cho AGP 8.x)
-      - name: Set up Java 17 (Temurin)
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 3) Flutter stable
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.35.2"
-          channel: "stable"
-          cache: true
+          flutter-version: "3.24.3" # hoặc bản stable mà bạn dùng
 
-      # 4) Kiểm tra pubspec tại app_lib (giúp phát hiện sai đường dẫn sớm)
-      - name: Sanity check
-        run: |
-          test -f pubspec.yaml && echo "Found pubspec at repo root" || echo "pubspec at root not found (that's OK)"
-          test -f app_lib/pubspec.yaml && echo "Found pubspec at app_lib (OK)" || (echo "ERROR: app_lib/pubspec.yaml not found"; exit 1)
-
-      # 5) Cài dependencies
-      - name: flutter pub get
-        working-directory: app_lib
+      - name: Flutter pub get
         run: flutter pub get
 
-      # 6) Chấp nhận Android SDK licenses (an toàn cho runner sạch)
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # 7) Build APK release (tối giản)
       - name: Build APK (release)
-        working-directory: app_lib
-        run: |
-          flutter build apk --release
+        run: flutter build apk --release
 
-      # 8) Upload artifact (dùng v4 – bản mới, không deprecated)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+          name: SNP-Chatbot-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
