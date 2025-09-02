@@ -19,27 +19,37 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.debug  // thay keystore thật khi phát hành
             minifyEnabled false
             shrinkResources false
         }
+        debug {
+            debuggable true
+        }
     }
 
+    // BẮT BUỘC để dùng flutter_local_notifications trên Java 8 API
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions { jvmTarget = "17" }
-
-    flutter {
-        source '../..'
+    kotlinOptions {
+        jvmTarget = "17"
     }
+}
+
+flutter {
+    source '../..'
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
+
+    // Desugaring
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+
+    // Multidex (khuyến nghị khi minSdk < 24 hoặc nhiều deps)
     implementation "androidx.multidex:multidex:2.0.1"
 }
