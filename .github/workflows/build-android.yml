@@ -27,7 +27,6 @@ jobs:
           channel: 'stable'
           flutter-version: '3.35.2'
 
-      # Làm việc trong thư mục gốc của app Flutter (app_lib)
       - name: Flutter version
         working-directory: app_lib
         run: flutter --version
@@ -36,17 +35,13 @@ jobs:
         working-directory: app_lib
         run: flutter pub get
 
-      # Chấp nhận license Android SDK (để tránh lỗi AAR metadata v.v.)
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
-      # Build APK release bằng Flutter (không gọi gradlew)
       - name: Build APK (release)
         working-directory: app_lib
-        # nếu app entry khác lib/main.dart thì đổi lại --target tương ứng
         run: flutter build apk --release --target=lib/main.dart
 
-      # Upload artifact
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
