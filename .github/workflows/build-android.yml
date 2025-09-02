@@ -5,15 +5,13 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v3
 
       - name: Set up Java 17
@@ -25,7 +23,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6' # Hoặc version Flutter bạn đang dùng
+          flutter-version: "3.24.0"   # chỉnh đúng version bạn đang dùng
 
       - name: Get dependencies
         run: flutter pub get
@@ -36,5 +34,5 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v3
         with:
-          name: SNP-Chatbot-APK
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
