@@ -19,10 +19,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Flutter (pin 3.10.6 để tương thích v1)
+      # Flutter 3.19.x đi kèm Dart 3.3.x (phù hợp với SDK >=3.3.0 <4.0.0)
+      - name: Set up Flutter (3.19.6)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.6"
+          flutter-version: "3.19.6"
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
@@ -37,14 +38,6 @@ jobs:
 
       - name: Get Flutter dependencies
         run: flutter pub get
-        working-directory: app_lib
-
-      - name: List direct dependencies (để khoanh vùng plugin v1)
-        run: |
-          echo "--------- pubspec.yaml ---------"
-          cat pubspec.yaml
-          echo "--------- deps (compact) --------"
-          flutter pub deps --style=compact
         working-directory: app_lib
 
       - name: Build APK (release)
