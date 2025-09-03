@@ -19,7 +19,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Flutter 3.19.x đi kèm Dart 3.3.x (phù hợp với SDK >=3.3.0 <4.0.0)
+      # Flutter 3.19.6 đi cùng Dart 3.3.x (hợp lệ với SDK >=3.3.0 <4.0.0)
       - name: Set up Flutter (3.19.6)
         uses: subosito/flutter-action@v2
         with:
@@ -31,10 +31,19 @@ jobs:
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
-      - name: Show Flutter/Dart versions
+      - name: Versions
         run: |
           flutter --version
           dart --version
+
+      # Kiểm tra không còn dấu vết embedding v1
+      - name: Sanity check (no v1 embedding remnants)
+        run: |
+          if grep -R -nE "io\.flutter\.app\.Flutter(Application|Activity)|GeneratedPluginRegistrant|\$\{applicationName\}" app_lib/android ; then
+            echo "❌ Vẫn còn dấu vết v1 trong android/. Vui lòng xoá theo hướng dẫn."; exit 1;
+          else
+            echo "✅ Không còn v1 remnants trong android/"; 
+          fi
 
       - name: Get Flutter dependencies
         run: flutter pub get
