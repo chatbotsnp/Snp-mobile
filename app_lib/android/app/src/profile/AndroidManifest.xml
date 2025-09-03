@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="vn.snp.chatbot">
+    <application
+        android:label="SNP Chatbot (profile)"
+        android:icon="@mipmap/ic_launcher" />
+</manifest>
