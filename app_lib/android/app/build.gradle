@@ -1,25 +1,27 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    // Flutter Gradle plugin (Flutter 3.16+)
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
     namespace "vn.snp.chatbot"
-    compileSdkVersion 34
+    compileSdk 34
 
     defaultConfig {
         applicationId "vn.snp.chatbot"
-        minSdkVersion 23
-        targetSdkVersion 34
+        minSdk 21
+        targetSdk 34
         versionCode 1
         versionName "1.0"
-        multiDexEnabled true
+        // ❗ KHÔNG dùng manifestPlaceholders applicationName (đã xoá v1 hoàn toàn)
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug  // thay keystore thật khi phát hành
+            // Khi phát hành thật hãy thay signingConfig bằng keystore của bạn
+            signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
@@ -28,28 +30,14 @@ android {
         }
     }
 
-    // BẮT BUỘC để dùng flutter_local_notifications trên Java 8 API
-    compileOptions {
-        coreLibraryDesugaringEnabled true
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
+    packagingOptions {
+        resources {
+            excludes += ["META-INF/*.kotlin_module"]
+        }
     }
 }
 
+// đường dẫn Flutter module (android/ nằm trong app_lib/, nên source là "..")
 flutter {
-    source '../..'
-}
-
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
-
-    // Desugaring
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
-
-    // Multidex (khuyến nghị khi minSdk < 24 hoặc nhiều deps)
-    implementation "androidx.multidex:multidex:2.0.1"
+    source ".."
 }
