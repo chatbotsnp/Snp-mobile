@@ -1,19 +1,36 @@
-buildscript {
-    ext { kotlin_version = '1.9.25' }
-    repositories { google(); mavenCentral() }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.3.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "vn.snp.chatbot"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "vn.snp.chatbot"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        // KHÔNG dùng manifestPlaceholders applicationName nữa
+    }
+
+    buildTypes {
+        release {
+            // TODO: thay signingConfig khi có keystore thật
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+        debug {
+            debuggable true
+        }
     }
 }
 
-allprojects { repositories { google(); mavenCentral() } }
-
-rootProject.buildDir = "../build"
-
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(":app")
+flutter {
+    // đường dẫn tới thư mục Flutter root so với thư mục android/
+    // android/ nằm trong app_lib/, nên root dự án là ".."
+    source ".."
 }
-
-tasks.register("clean", Delete) { delete rootProject.buildDir }
