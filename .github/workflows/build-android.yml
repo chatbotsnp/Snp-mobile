@@ -1,9 +1,8 @@
-name: Build Android
+name: build-android
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -18,27 +17,30 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
+          # dùng kênh stable mới nhất; nếu bạn muốn pin version, điền ví dụ: '3.22.2'
+          channel: "stable"
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android Licenses
+      - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
       - name: Get Flutter dependencies
         run: flutter pub get
+        working-directory: app_lib
 
       - name: Build APK (release)
         run: flutter build apk --release
+        working-directory: app_lib
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SNP-Chatbot-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: app-release-apk
+          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
