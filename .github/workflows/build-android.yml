@@ -1,10 +1,9 @@
 name: Build Android (Flutter)
 
 on:
-  workflow_dispatch: # Cho phép run thủ công
+  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
@@ -12,31 +11,60 @@ jobs:
 
     defaults:
       run:
-        working-directory: app_lib  # <<-- Đảm bảo chạy trong app_lib
+        working-directory: app_lib   # <— build bên trong thư mục app_lib
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.19.6  # Khớp với máy bạn
+          channel: stable
+          # version: '3.19.6' # (tuỳ bạn, để trống sẽ lấy stable mới nhất)
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build APK (release)
-        run: flutter build apk --release
+      - name: Build APK (release, verbose)
+        id: build_apk
+        shell: bash
+        run: |
+          set -euxo pipefail
+          flutter --version
+          flutter doctor -v
+
+          # dọn cache (an toàn)
+          flutter clean
+
+          # build có log chi tiết
+          flutter build apk --release -v
+
+          echo "== List outputs =="
+          find . -maxdepth 4 -type f -name "*.apk" -print || true
+
+          # Tự dò file .apk ở các vị trí phổ biến
+          APK_PATH="$( \
+            find . -type f -name "*.apk" \
+            \( -path "./build/app/outputs/**" -o -path "./android/app/build/outputs/**" -o -path "./**/outputs/**" \) \
+            | head -n1 )"
+
+          if [[ -z "${APK_PATH}" ]]; then
+            echo "Không tìm thấy file APK sau khi build."
+            exit 1
+          fi
+
+          echo "APK_PATH=${APK_PATH}" | tee -a "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SNP-Chatbot-APK
-          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
+          name: snp-chatbot-apk
+          path: ${{ steps.build_apk.outputs.APK_PATH }}
+          if-no-files-found: error
