@@ -1,9 +1,34 @@
-// Top-level Gradle file for the Android host project.
-// Bổ sung repositories cho toàn bộ subprojects (AGP 8.x + Flutter 3.19.x)
+// app_lib/android/build.gradle  (project-level)
+buildscript {
+    ext {
+        kotlin_version = '1.9.25'
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Khai báo rõ AGP để Flutter/Gradle nhận chính xác phiên bản
+        classpath 'com.android.tools.build:gradle:8.2.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
 
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
+}
+
+rootProject.buildDir = "../build"
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(":app")
+}
+
+// Gradle clean
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
 }
