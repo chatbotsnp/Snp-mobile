@@ -1,7 +1,6 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
-    // Flutter Gradle plugin (Flutter 3.16+)
+    id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -11,17 +10,15 @@ android {
 
     defaultConfig {
         applicationId "vn.snp.chatbot"
-        minSdk 21
+        minSdk 23
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        // ❗ KHÔNG dùng manifestPlaceholders applicationName (đã xoá v1 hoàn toàn)
+        multiDexEnabled true
     }
 
     buildTypes {
         release {
-            // Khi phát hành thật hãy thay signingConfig bằng keystore của bạn
-            signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
@@ -30,14 +27,20 @@ android {
         }
     }
 
-    packagingOptions {
-        resources {
-            excludes += ["META-INF/*.kotlin_module"]
-        }
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+
+    sourceSets {
+        main { java.srcDirs += 'src/main/kotlin' }
     }
 }
 
-// đường dẫn Flutter module (android/ nằm trong app_lib/, nên source là "..")
-flutter {
-    source ".."
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22"
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.0.4"
+    implementation "androidx.multidex:multidex:2.0.1"
 }
