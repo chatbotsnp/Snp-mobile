@@ -2,15 +2,17 @@ name: Build Android (Flutter)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: app_lib
+
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -19,30 +21,38 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Flutter (stable 3.35.3)
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          ndk: "27.0.12077973" # optional, không hại gì
+
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.35.3"
           channel: "stable"
-          cache: true
+          flutter-version: "3.35.3"
 
-      - name: Flutter doctor (env check)
+      - name: Flutter doctor (diagnose)
         run: flutter doctor -v
 
-      # Chấp nhận license Android trên runner
-      - name: Accept Android licenses
-        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-
-      - name: flutter pub get
-        working-directory: app_lib
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (release, verbose)
-        working-directory: app_lib
-        run: flutter build apk --release --verbose
+      - name: Build APK (release, Flutter)
+        run: flutter build apk --release -v
+
+      # Fallback: ép Gradle build module :app (nếu vì lý do nào đó lệnh trên không tạo ra APK)
+      - name: Build APK via Gradle (fallback)
+        run: |
+          chmod +x android/gradlew
+          ./android/gradlew -p android :app:assembleRelease --stacktrace --info || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
+          name: snp-chatbot-apk
+          path: |
+            app/build/outputs/flutter-apk/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
