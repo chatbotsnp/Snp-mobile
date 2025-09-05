@@ -1,17 +1,18 @@
-// app_lib/android/build.gradle  (project-level)
 buildscript {
-    ext {
-        kotlin_version = '1.9.25'
-    }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Khai báo rõ AGP để Flutter/Gradle nhận chính xác phiên bản
-        classpath 'com.android.tools.build:gradle:8.2.1'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // Không cần khai báo classpath AGP ở đây nữa với Gradle 7+
+        // vì đã khai báo trong plugins { } ở dưới
     }
+}
+
+plugins {
+    id "com.android.application" version "8.2.1" apply false
+    id "com.android.library" version "8.2.1" apply false
+    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
 }
 
 allprojects {
@@ -25,10 +26,8 @@ rootProject.buildDir = "../build"
 
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(":app")
 }
 
-// Gradle clean
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
