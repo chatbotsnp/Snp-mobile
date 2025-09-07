@@ -1,15 +1,76 @@
-      # Build APK (Flutter) + fallback Gradle, và in log chi tiết
+name: Build Android (Flutter)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # JDK 17 cho Android Gradle Plugin mới
+      - name: Set up JDK 17
+        id: java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Thiết lập Flutter stable
+      - name: Set up Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Versions
+        run: |
+          flutter --version
+          dart --version
+          echo "JAVA_HOME=$JAVA_HOME"
+
+      # Cài dependency của Flutter app
+      - name: flutter pub get
+        working-directory: app_lib
+        run: flutter pub get
+
+      # Chấp nhận license Android SDK (không fail nếu ở môi trường không có sdkmanager)
+      - name: Accept Android licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
+      # Đảm bảo gradlew có quyền thực thi (dùng cho fallback)
+      - name: Make gradlew executable
+        working-directory: app_lib/android
+        run: chmod +x gradlew
+
+      # Build APK (Flutter) + Fallback Gradle + chuẩn hoá đường dẫn APK
       - name: Build APK (release, verbose + fallback)
         working-directory: app_lib
         env:
-          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
+          JAVA_HOME: ${{ env.JAVA_HOME }}   # từ setup-java@v4
         run: |
           set -e
           echo "== flutter clean =="
           flutter clean
 
           echo "== flutter build apk --release -v =="
-          # Không dừng job ngay nếu lệnh thất bại để còn chạy fallback
+          # Cho phép tiếp tục để chạy fallback nếu cần
           set +e
           flutter build apk --release -v
           FLUTTER_RC=$?
@@ -18,18 +79,18 @@
           echo "== Liệt kê outputs sau flutter build =="
           ls -R build/app/outputs || true
 
-          # Chuẩn vị trí Flutter mới
+          # Đường dẫn APK chuẩn của Flutter
           APK_STD="build/app/outputs/flutter-apk/app-release.apk"
 
-          # Nếu chưa thấy, chạy Gradle trực tiếp để lấy log rõ ràng
+          # Nếu chưa thấy file ở đường dẫn chuẩn, chạy Gradle để có log chi tiết
           if [ ! -f "$APK_STD" ]; then
-            echo "== Chưa thấy APK chuẩn. Chạy Gradle fallback với stacktrace… =="
+            echo "== Chưa thấy APK chuẩn. Chạy Gradle fallback… =="
             pushd android
             ./gradlew :app:assembleRelease --stacktrace --warning-mode all --info
             popd
           fi
 
-          echo "== Tìm APK ở mọi nơi trong app_lib =="
+          echo "== Tìm *.apk trong toàn bộ app_lib =="
           FOUND=$(ls -1 **/*.apk 2>/dev/null | head -n 1 || true)
           if [ -z "$FOUND" ]; then
             echo "❌ Không tìm thấy file APK sau cả Flutter và Gradle."
@@ -40,7 +101,7 @@
           echo "✅ Tìm thấy APK: $FOUND"
           mkdir -p build/app/outputs/flutter-apk
           cp "$FOUND" "$APK_STD"
-          echo "== Vị trí chuẩn hóa: $APK_STD =="
+          echo "== APK chuẩn hoá tại: $APK_STD =="
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
