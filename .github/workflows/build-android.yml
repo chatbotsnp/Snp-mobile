@@ -1,72 +1,46 @@
-name: Build Android (Flutter)
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Flutter (stable)
-        uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          # để trống version -> tự lấy stable mới; hoặc ghi 3.35.3 cho cố định
-          cache: true
-
-      - name: Flutter doctor (brief)
-        run: flutter --version
-
-      - name: Get Flutter dependencies
-        working-directory: app_lib
-        run: flutter pub get
-
-      # Build APK (release)
-      - name: Build APK (release, verbose)
+      # Build APK (Flutter) + fallback Gradle, và in log chi tiết
+      - name: Build APK (release, verbose + fallback)
         working-directory: app_lib
         env:
-          # đảm bảo dùng JDK 17
           JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         run: |
+          set -e
+          echo "== flutter clean =="
           flutter clean
-          flutter build apk --release -v
 
-          echo "== List outputs =="
+          echo "== flutter build apk --release -v =="
+          # Không dừng job ngay nếu lệnh thất bại để còn chạy fallback
+          set +e
+          flutter build apk --release -v
+          FLUTTER_RC=$?
+          set -e
+
+          echo "== Liệt kê outputs sau flutter build =="
           ls -R build/app/outputs || true
 
-          # Kiểm tra file đích (Flutter hiện lưu tại flutter-apk/app-release.apk)
-          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
-          if [ ! -f "$APK_PATH" ]; then
-            echo "APK không nằm ở vị trí mặc định, thử tìm file *.apk…"
-            FOUND=$(ls build/app/outputs/**/*.apk 2>/dev/null | head -n 1 || true)
-            if [ -n "$FOUND" ]; then
-              echo "Found: $FOUND"
-              mv "$FOUND" "build/app/outputs/flutter-apk/app-release.apk"
-            else
-              echo "Không tìm thấy APK sau khi build."
-              exit 1
-            fi
+          # Chuẩn vị trí Flutter mới
+          APK_STD="build/app/outputs/flutter-apk/app-release.apk"
+
+          # Nếu chưa thấy, chạy Gradle trực tiếp để lấy log rõ ràng
+          if [ ! -f "$APK_STD" ]; then
+            echo "== Chưa thấy APK chuẩn. Chạy Gradle fallback với stacktrace… =="
+            pushd android
+            ./gradlew :app:assembleRelease --stacktrace --warning-mode all --info
+            popd
           fi
+
+          echo "== Tìm APK ở mọi nơi trong app_lib =="
+          FOUND=$(ls -1 **/*.apk 2>/dev/null | head -n 1 || true)
+          if [ -z "$FOUND" ]; then
+            echo "❌ Không tìm thấy file APK sau cả Flutter và Gradle."
+            echo "Gợi ý: kiểm tra module name phải là :app và productFlavors (nếu có)."
+            exit 1
+          fi
+
+          echo "✅ Tìm thấy APK: $FOUND"
+          mkdir -p build/app/outputs/flutter-apk
+          cp "$FOUND" "$APK_STD"
+          echo "== Vị trí chuẩn hóa: $APK_STD =="
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
