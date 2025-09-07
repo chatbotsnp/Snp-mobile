@@ -2,17 +2,23 @@ name: Build Android (Flutter)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     defaults:
       run:
-        working-directory: app_lib
+        shell: bash
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -21,38 +27,50 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 34
-          ndk: "27.0.12077973" # optional, không hại gì
-
-      - name: Set up Flutter
+      - name: Set up Flutter (stable)
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.35.3"
+          # để trống version -> tự lấy stable mới; hoặc ghi 3.35.3 cho cố định
+          cache: true
 
-      - name: Flutter doctor (diagnose)
-        run: flutter doctor -v
+      - name: Flutter doctor (brief)
+        run: flutter --version
 
-      - name: Get dependencies
+      - name: Get Flutter dependencies
+        working-directory: app_lib
         run: flutter pub get
 
-      - name: Build APK (release, Flutter)
-        run: flutter build apk --release -v
-
-      # Fallback: ép Gradle build module :app (nếu vì lý do nào đó lệnh trên không tạo ra APK)
-      - name: Build APK via Gradle (fallback)
+      # Build APK (release)
+      - name: Build APK (release, verbose)
+        working-directory: app_lib
+        env:
+          # đảm bảo dùng JDK 17
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         run: |
-          chmod +x android/gradlew
-          ./android/gradlew -p android :app:assembleRelease --stacktrace --info || true
+          flutter clean
+          flutter build apk --release -v
+
+          echo "== List outputs =="
+          ls -R build/app/outputs || true
+
+          # Kiểm tra file đích (Flutter hiện lưu tại flutter-apk/app-release.apk)
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "APK không nằm ở vị trí mặc định, thử tìm file *.apk…"
+            FOUND=$(ls build/app/outputs/**/*.apk 2>/dev/null | head -n 1 || true)
+            if [ -n "$FOUND" ]; then
+              echo "Found: $FOUND"
+              mv "$FOUND" "build/app/outputs/flutter-apk/app-release.apk"
+            else
+              echo "Không tìm thấy APK sau khi build."
+              exit 1
+            fi
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: snp-chatbot-apk
-          path: |
-            app/build/outputs/flutter-apk/*.apk
-            android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
+          path: app_lib/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
