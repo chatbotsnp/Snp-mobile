@@ -8,72 +8,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17 (Temurin)
+      - name: Set up Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
       - name: Set up Flutter (stable)
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: true
+          channel: "stable"
+          # Hoặc cố định phiên bản (tuỳ bạn):
+          # flutter-version: "3.35.3"
 
       - name: Flutter pub get
-        working-directory: app_lib
         run: flutter pub get
 
-      # ====== STEP BUILD (đã sửa quyền gradlew & fallback) ======
-      - name: Build APK (release, verbose + fallback)
-        working-directory: app_lib
-        shell: bash
-        run: |
-          set -e
-          flutter clean
-          flutter build apk --release -v --target=lib/main.dart || true
-
-          echo "== Liệt kê outputs sau flutter build =="
-          ls -la build/app/outputs || true
-
-          APK_PATH=""
-          if [ -f build/app/outputs/flutter-apk/app-release.apk ]; then
-            APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
-          elif [ -f build/app/outputs/apk/release/app-release.apk ]; then
-            APK_PATH="build/app/outputs/apk/release/app-release.apk"
-          fi
-
-          if [ -z "$APK_PATH" ]; then
-            echo "== Chưa thấy APK chuẩn. Chạy Gradle fallback… =="
-
-            # FIX quyền/CRLF cho gradlew
-            sed -i 's/\r$//' android/gradlew
-            chmod +x android/gradlew
-
-            pushd android
-            ./gradlew :app:assembleRelease --stacktrace --info
-            popd
-
-            if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-              APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
-            fi
-          fi
-
-          if [ -z "$APK_PATH" ]; then
-            echo "❌ Không tìm thấy file APK sau cả Flutter và Gradle."
-            exit 1
-          fi
-
-          echo "✅ Tìm thấy APK: $APK_PATH"
-          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+      - name: Build APK (release)
+        run: flutter build apk --release
 
       - name: Upload APK artifact
-        if: env.APK_PATH != ''
         uses: actions/upload-artifact@v4
         with:
-          name: snp-chatbot-apk
-          path: app_lib/${{ env.APK_PATH }}
-          if-no-files-found: error
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
