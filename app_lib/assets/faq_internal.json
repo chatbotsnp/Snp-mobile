@@ -1,4 +1,5 @@
 [
-  {"q":"Quy định PCCC nội bộ", "a":"Mặc PPE, biết vị trí bình chữa cháy, lối thoát hiểm. Báo cáo sự cố ngay lập tức."},
-  {"q":"Báo cáo sự cố an ninh", "a":"Dùng mẫu **ANC-01**, gửi Phòng Tham mưu. Thời hạn trong 2 giờ từ khi phát hiện."}
+  {"q": "Quy định nội bộ truy cập?", "a": "Chỉ nhân viên đã đăng nhập mới xem được nội dung này."},
+  {"q": "PSAFE tra cứu nhanh?", "a": "Vào FAQ nội bộ và dùng ô tìm kiếm gõ từ khóa."},
+  {"q": "ACS/C3 hướng dẫn?", "a": "Mục Tài liệu nội bộ sẽ có video và văn bản chuẩn."}
 ]
