@@ -1,12 +1,5 @@
 [
-  {"q": "Giờ làm việc của công ty là khi nào?", "a": "Công ty làm việc từ 08:00 đến 17:00, từ thứ 2 đến thứ 6."},
-  {"q": "Công ty có làm việc thứ 7 không?", "a": "Một số bộ phận làm việc sáng thứ 7, bạn vui lòng liên hệ trực tiếp để biết chi tiết."},
-  {"q": "Địa chỉ trụ sở chính ở đâu?", "a": "Trụ sở chính tại 722 Điện Biên Phủ, Quận Bình Thạnh, TP.HCM."},
-  {"q": "Tôi muốn liên hệ phòng chăm sóc khách hàng thì làm thế nào?", "a": "Bạn có thể gọi số hotline 1900-1188 hoặc email: cskh@snpcorp.vn"},
-  {"q": "Quy định về an ninh khi vào cổng là gì?", "a": "Khách hàng cần xuất trình CCCD và đăng ký thông tin tại phòng bảo vệ trước khi vào cổng."},
-  {"q": "Khách hàng có thể gửi xe ở đâu?", "a": "Bãi xe dành riêng cho khách được bố trí cạnh cổng chính."},
-  {"q": "Công ty có dịch vụ logistics không?", "a": "Có, công ty cung cấp dịch vụ logistics trọn gói, bạn có thể liên hệ Phòng Kinh Doanh."},
-  {"q": "Tôi muốn nhận báo giá dịch vụ thì làm thế nào?", "a": "Bạn có thể để lại thông tin trên website hoặc gửi email trực tiếp cho bộ phận Kinh Doanh."},
-  {"q": "Các hình thức thanh toán hiện có?", "a": "Chúng tôi chấp nhận thanh toán chuyển khoản ngân hàng và tiền mặt tại quầy."},
-  {"q": "Làm thế nào để phản ánh hoặc khiếu nại?", "a": "Bạn có thể gửi khiếu nại qua email hotro@snpcorp.vn hoặc liên hệ trực tiếp tại quầy hỗ trợ."}
+  {"q": "Thời gian làm việc?", "a": "Giờ hành chính: 08:00-17:00 (T2-T6)."},
+  {"q": "Quy trình ANC là gì?", "a": "Là bộ quy trình an ninh cảng áp dụng cho khách và đối tác."},
+  {"q": "Hỗ trợ khách hàng ở đâu?", "a": "Liên hệ tổng đài CSKH hoặc phòng ban phụ trách trên app."}
 ]
